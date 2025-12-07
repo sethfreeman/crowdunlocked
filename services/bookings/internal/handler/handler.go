@@ -40,7 +40,10 @@ func (h *BookingHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(booking)
+	if err := json.NewEncoder(w).Encode(booking); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *BookingHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +61,10 @@ func (h *BookingHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(booking)
+	if err := json.NewEncoder(w).Encode(booking); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *BookingHandler) Confirm(w http.ResponseWriter, r *http.Request) {
@@ -82,5 +88,8 @@ func (h *BookingHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(booking)
+	if err := json.NewEncoder(w).Encode(booking); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
