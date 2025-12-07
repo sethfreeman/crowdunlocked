@@ -1,6 +1,14 @@
 # Crowd Unlocked
 
-Enterprise monorepo for Crowd Unlocked platform.
+[![Tests](https://github.com/YOUR_USERNAME/crowdunlocked/actions/workflows/services.yaml/badge.svg)](https://github.com/YOUR_USERNAME/crowdunlocked/actions/workflows/services.yaml)
+[![Infrastructure](https://github.com/YOUR_USERNAME/crowdunlocked/actions/workflows/terraform.yaml/badge.svg)](https://github.com/YOUR_USERNAME/crowdunlocked/actions/workflows/terraform.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Version](https://img.shields.io/badge/Go-1.22-blue.svg)](https://golang.org)
+[![OpenTofu](https://img.shields.io/badge/OpenTofu-1.10-purple.svg)](https://opentofu.org)
+
+> Open-source artist management platform built with microservices, Next.js, Flutter, and AWS
+
+**Enterprise monorepo for Crowd Unlocked platform.**
 
 ## Architecture
 
@@ -70,3 +78,22 @@ make build
 
 - **Dev**: https://crowdunlockedbeta.com (auto-deploy from `develop`)
 - **Prod**: https://crowdunlocked.com (auto-deploy from `main`)
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+- 📖 [Documentation](./docs)
+- 🚀 [Quick Start](./QUICKSTART.md)
+- 💬 [Discussions](https://github.com/YOUR_USERNAME/crowdunlocked/discussions)
+- 🐛 [Issues](https://github.com/YOUR_USERNAME/crowdunlocked/issues)
+
+---
+
+**Built with ❤️ for artists and their teams**
