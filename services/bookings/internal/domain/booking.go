@@ -15,14 +15,14 @@ const (
 )
 
 type Booking struct {
-	ID          string        `dynamodbav:"id" json:"id"`
-	ArtistID    string        `dynamodbav:"artist_id" json:"artist_id"`
-	VenueID     string        `dynamodbav:"venue_id" json:"venue_id"`
-	EventDate   time.Time     `dynamodbav:"event_date" json:"event_date"`
-	Status      BookingStatus `dynamodbav:"status" json:"status"`
-	Fee         float64       `dynamodbav:"fee" json:"fee"`
-	CreatedAt   time.Time     `dynamodbav:"created_at" json:"created_at"`
-	UpdatedAt   time.Time     `dynamodbav:"updated_at" json:"updated_at"`
+	ID        string        `dynamodbav:"id" json:"id"`
+	ArtistID  string        `dynamodbav:"artist_id" json:"artist_id"`
+	VenueID   string        `dynamodbav:"venue_id" json:"venue_id"`
+	EventDate time.Time     `dynamodbav:"event_date" json:"event_date"`
+	Status    BookingStatus `dynamodbav:"status" json:"status"`
+	Fee       float64       `dynamodbav:"fee" json:"fee"`
+	CreatedAt time.Time     `dynamodbav:"created_at" json:"created_at"`
+	UpdatedAt time.Time     `dynamodbav:"updated_at" json:"updated_at"`
 }
 
 func NewBooking(artistID, venueID string, eventDate time.Time, fee float64) *Booking {
