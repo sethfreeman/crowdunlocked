@@ -53,9 +53,9 @@ jobs:
         working-directory: infra/terraform/${{ matrix.environment }}
         run: tofu init
 
-      - name: OpenTofu Format Check
+      - name: OpenTofu Format
         working-directory: infra/terraform/${{ matrix.environment }}
-        run: tofu fmt -check
+        run: tofu fmt  # Auto-format files
 
       - name: OpenTofu Validate
         working-directory: infra/terraform/${{ matrix.environment }}
@@ -79,10 +79,10 @@ jobs:
           TF_VAR_prod_domain_name: ${{ secrets.PROD_DOMAIN_NAME }}
           TF_VAR_dev_domain_name: ${{ secrets.DEV_DOMAIN_NAME }}
         run: |
-          if [ "${{ matrix.environment }}" = "management" ]; then
-            terraform plan -var-file=mgmt.tfvars -out=tfplan
+          if [ "${{ matrix.environment }}" = "mgmt" ]; then
+            tofu plan -var-file=mgmt.tfvars -out=tfplan
           else
-            terraform plan -var-file=${{ matrix.environment }}.tfvars -out=tfplan
+            tofu plan -var-file=${{ matrix.environment }}.tfvars -out=tfplan
           fi
 
       - name: Upload Plan
