@@ -1,7 +1,7 @@
 # Crowd Unlocked
 
-[![Tests](https://github.com/YOUR_USERNAME/crowdunlocked/actions/workflows/services.yaml/badge.svg)](https://github.com/YOUR_USERNAME/crowdunlocked/actions/workflows/services.yaml)
-[![Infrastructure](https://github.com/YOUR_USERNAME/crowdunlocked/actions/workflows/terraform.yaml/badge.svg)](https://github.com/YOUR_USERNAME/crowdunlocked/actions/workflows/terraform.yaml)
+[![Tests](https://github.com/sethfreeman/crowdunlocked/actions/workflows/services.yaml/badge.svg)](https://github.com/sethfreeman/crowdunlocked/actions/workflows/services.yaml)
+[![Infrastructure](https://github.com/sethfreeman/crowdunlocked/actions/workflows/terraform.yaml/badge.svg)](https://github.com/sethfreeman/crowdunlocked/actions/workflows/terraform.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.22-blue.svg)](https://golang.org)
 [![OpenTofu](https://img.shields.io/badge/OpenTofu-1.10-purple.svg)](https://opentofu.org)
@@ -91,8 +91,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - 📖 [Documentation](./docs)
 - 🚀 [Quick Start](./QUICKSTART.md)
-- 💬 [Discussions](https://github.com/YOUR_USERNAME/crowdunlocked/discussions)
-- 🐛 [Issues](https://github.com/YOUR_USERNAME/crowdunlocked/issues)
+- 💬 [Discussions](https://github.com/sethfreeman/crowdunlocked/discussions)
+- 🐛 [Issues](https://github.com/sethfreeman/crowdunlocked/issues)
 
 ---
 
