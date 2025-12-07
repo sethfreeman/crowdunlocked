@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   terraform-plan:
-    name: Terraform Plan
+    name: OpenTofu Plan
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -49,19 +49,19 @@ jobs:
           role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', matrix.environment)] }}
           aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
-      - name: Terraform Init
+      - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
-        run: terraform init
+        run: tofu init
 
-      - name: Terraform Format Check
+      - name: OpenTofu Format Check
         working-directory: infra/terraform/${{ matrix.environment }}
-        run: terraform fmt -check
+        run: tofu fmt -check
 
-      - name: Terraform Validate
+      - name: OpenTofu Validate
         working-directory: infra/terraform/${{ matrix.environment }}
-        run: terraform validate
+        run: tofu validate
 
-      - name: Terraform Plan
+      - name: OpenTofu Plan
         working-directory: infra/terraform/${{ matrix.environment }}
         env:
           # Management account sensitive variables
@@ -93,7 +93,7 @@ jobs:
           retention-days: 5
 
   terraform-apply-dev:
-    name: Terraform Apply (Dev)
+    name: OpenTofu Apply (Dev)
     runs-on: ubuntu-latest
     needs: terraform-plan
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
@@ -117,9 +117,9 @@ jobs:
           role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', matrix.environment)] }}
           aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
-      - name: Terraform Init
+      - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
-        run: terraform init
+        run: tofu init
 
       - name: Download Plan
         uses: actions/download-artifact@v4
@@ -127,7 +127,7 @@ jobs:
           name: tfplan-${{ matrix.environment }}
           path: infra/terraform/${{ matrix.environment }}
 
-      - name: Terraform Apply
+      - name: OpenTofu Apply
         working-directory: infra/terraform/${{ matrix.environment }}
         env:
           # Management account sensitive variables
@@ -144,10 +144,10 @@ jobs:
           # Domain names
           TF_VAR_prod_domain_name: ${{ secrets.PROD_DOMAIN_NAME }}
           TF_VAR_dev_domain_name: ${{ secrets.DEV_DOMAIN_NAME }}
-        run: terraform apply -auto-approve tfplan
+        run: tofu apply -auto-approve tfplan
 
   terraform-apply-prod:
-    name: Terraform Apply (Prod)
+    name: OpenTofu Apply (Prod)
     runs-on: ubuntu-latest
     needs: terraform-plan
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -171,9 +171,9 @@ jobs:
           role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', matrix.environment)] }}
           aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
-      - name: Terraform Init
+      - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
-        run: terraform init
+        run: tofu init
 
       - name: Download Plan
         uses: actions/download-artifact@v4
@@ -181,7 +181,7 @@ jobs:
           name: tfplan-${{ matrix.environment }}
           path: infra/terraform/${{ matrix.environment }}
 
-      - name: Terraform Apply
+      - name: OpenTofu Apply
         working-directory: infra/terraform/${{ matrix.environment }}
         env:
           # Management account sensitive variables
@@ -198,4 +198,4 @@ jobs:
           # Domain names
           TF_VAR_prod_domain_name: ${{ secrets.PROD_DOMAIN_NAME }}
           TF_VAR_dev_domain_name: ${{ secrets.DEV_DOMAIN_NAME }}
-        run: terraform apply -auto-approve tfplan
+        run: tofu apply -auto-approve tfplan
