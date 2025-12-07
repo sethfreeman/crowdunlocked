@@ -1,0 +1,263 @@
+name: Services CI/CD
+
+on:
+  pull_request:
+    paths:
+      - 'services/**'
+      - 'apps/**'
+      - 'k8s/**'
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'services/**'
+      - 'apps/**'
+      - 'k8s/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  test-services:
+    name: Test Go Services
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [bookings, releases, publicity, social, money]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
+
+      - name: Run Tests
+        working-directory: services/${{ matrix.service }}
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out
+
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: services/${{ matrix.service }}/coverage.out
+          flags: ${{ matrix.service }}
+
+  test-web:
+    name: Test Web App
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Run Linter
+        working-directory: apps/web
+        run: npm run lint
+
+      - name: Run Tests
+        working-directory: apps/web
+        run: npm test -- --passWithNoTests
+
+      - name: Type Check
+        working-directory: apps/web
+        run: npm run type-check || true
+
+  test-mobile:
+    name: Test Mobile App
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+
+      - name: Install Dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Run Tests
+        working-directory: apps/mobile
+        run: flutter test
+
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Check Go Formatting
+        run: |
+          if [ -n "$(gofmt -l services/)" ]; then
+            echo "Go files are not formatted. Run 'make fmt'"
+            gofmt -l services/
+            exit 1
+          fi
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          working-directory: services/bookings
+
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-services, test-web, test-mobile, lint]
+    if: github.event_name == 'push'
+    strategy:
+      matrix:
+        service: [bookings, releases, publicity, social, money]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=dev-{{sha}},enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=prod-{{sha}},enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-web:
+    name: Build Web App Image
+    runs-on: ubuntu-latest
+    needs: [test-web, lint]
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/web
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=dev-{{sha}},enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=prod-{{sha}},enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/web
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  update-manifests:
+    name: Update K8s Manifests
+    runs-on: ubuntu-latest
+    needs: [build-images, build-web]
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Image Tags
+        run: |
+          BRANCH=${{ github.ref_name }}
+          SHA=${{ github.sha }}
+          SHORT_SHA=${SHA:0:7}
+          
+          if [ "$BRANCH" = "develop" ]; then
+            OVERLAY="dev"
+            TAG="dev-${SHORT_SHA}"
+          elif [ "$BRANCH" = "main" ]; then
+            OVERLAY="prod"
+            TAG="prod-${SHORT_SHA}"
+          fi
+          
+          # Update kustomization.yaml with new image tags
+          cd k8s/overlays/${OVERLAY}
+          
+          # This is a placeholder - adjust based on your kustomization structure
+          # You might use kustomize edit set image or yq to update tags
+          echo "Would update images to tag: ${TAG}"
+          
+      - name: Commit Changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/
+          git diff --staged --quiet || git commit -m "chore: update image tags to ${{ github.sha }}"
+          git push

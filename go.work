@@ -1,0 +1,9 @@
+go 1.22
+
+use (
+    ./services/bookings
+    ./services/releases
+    ./services/publicity
+    ./services/social
+    ./services/money
+)

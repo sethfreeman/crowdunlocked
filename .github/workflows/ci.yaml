@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  test-services:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [bookings, releases, publicity, social, money]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      
+      - name: Test ${{ matrix.service }}
+        working-directory: services/${{ matrix.service }}
+        run: |
+          go mod download
+          go test -v -cover ./...
+
+  build-images:
+    needs: test-services
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    strategy:
+      matrix:
+        service: [bookings, releases, publicity, social, money]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Build and push ${{ matrix.service }}
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:$IMAGE_TAG \
+            -f services/${{ matrix.service }}/Dockerfile .
+          docker push $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:$IMAGE_TAG
+          
+          if [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            docker tag $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:$IMAGE_TAG \
+              $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:dev-latest
+            docker push $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:dev-latest
+          fi
+          
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:$IMAGE_TAG \
+              $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:prod-latest
+            docker push $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:prod-latest
+          fi
+
+  build-web:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Build web app
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Build and push web image
+        working-directory: apps/web
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/crowdunlocked/web:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/crowdunlocked/web:$IMAGE_TAG

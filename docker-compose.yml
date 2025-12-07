@@ -1,0 +1,43 @@
+services:
+  bookings:
+    build:
+      context: .
+      dockerfile: services/bookings/Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - PORT=8080
+      - DYNAMODB_TABLE=bookings-local
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_ENDPOINT=http://dynamodb-local:8000
+
+  releases:
+    build:
+      context: .
+      dockerfile: services/releases/Dockerfile
+    ports:
+      - "8082:8080"
+    environment:
+      - PORT=8080
+      - DYNAMODB_TABLE=releases-local
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_ENDPOINT=http://dynamodb-local:8000
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8081
+
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"

@@ -1,0 +1,201 @@
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - 'infra/terraform/**'
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'infra/terraform/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - mgmt
+          - dev
+          - prod
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write  # For OIDC authentication with AWS
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [mgmt, dev, prod]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.10.7"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', matrix.environment)] }}
+          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
+
+      - name: Terraform Init
+        working-directory: infra/terraform/${{ matrix.environment }}
+        run: terraform init
+
+      - name: Terraform Format Check
+        working-directory: infra/terraform/${{ matrix.environment }}
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        working-directory: infra/terraform/${{ matrix.environment }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: infra/terraform/${{ matrix.environment }}
+        env:
+          # Management account sensitive variables
+          TF_VAR_dev_account_email: ${{ secrets.DEV_ACCOUNT_EMAIL }}
+          TF_VAR_prod_account_email: ${{ secrets.PROD_ACCOUNT_EMAIL }}
+          TF_VAR_domain_contact_email: ${{ secrets.DOMAIN_CONTACT_EMAIL }}
+          TF_VAR_domain_contact_first_name: ${{ secrets.DOMAIN_CONTACT_FIRST_NAME }}
+          TF_VAR_domain_contact_last_name: ${{ secrets.DOMAIN_CONTACT_LAST_NAME }}
+          TF_VAR_domain_contact_phone: ${{ secrets.DOMAIN_CONTACT_PHONE }}
+          TF_VAR_domain_contact_address: ${{ secrets.DOMAIN_CONTACT_ADDRESS }}
+          TF_VAR_domain_contact_city: ${{ secrets.DOMAIN_CONTACT_CITY }}
+          TF_VAR_domain_contact_state: ${{ secrets.DOMAIN_CONTACT_STATE }}
+          TF_VAR_domain_contact_zip: ${{ secrets.DOMAIN_CONTACT_ZIP }}
+          # Domain names
+          TF_VAR_prod_domain_name: ${{ secrets.PROD_DOMAIN_NAME }}
+          TF_VAR_dev_domain_name: ${{ secrets.DEV_DOMAIN_NAME }}
+        run: |
+          if [ "${{ matrix.environment }}" = "management" ]; then
+            terraform plan -var-file=mgmt.tfvars -out=tfplan
+          else
+            terraform plan -var-file=${{ matrix.environment }}.tfvars -out=tfplan
+          fi
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ matrix.environment }}
+          path: infra/terraform/${{ matrix.environment }}/tfplan
+          retention-days: 5
+
+  terraform-apply-dev:
+    name: Terraform Apply (Dev)
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    strategy:
+      matrix:
+        environment: [mgmt, dev]
+      max-parallel: 1  # Apply mgmt first, then dev
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.10.7"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', matrix.environment)] }}
+          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
+
+      - name: Terraform Init
+        working-directory: infra/terraform/${{ matrix.environment }}
+        run: terraform init
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ matrix.environment }}
+          path: infra/terraform/${{ matrix.environment }}
+
+      - name: Terraform Apply
+        working-directory: infra/terraform/${{ matrix.environment }}
+        env:
+          # Management account sensitive variables
+          TF_VAR_dev_account_email: ${{ secrets.DEV_ACCOUNT_EMAIL }}
+          TF_VAR_prod_account_email: ${{ secrets.PROD_ACCOUNT_EMAIL }}
+          TF_VAR_domain_contact_email: ${{ secrets.DOMAIN_CONTACT_EMAIL }}
+          TF_VAR_domain_contact_first_name: ${{ secrets.DOMAIN_CONTACT_FIRST_NAME }}
+          TF_VAR_domain_contact_last_name: ${{ secrets.DOMAIN_CONTACT_LAST_NAME }}
+          TF_VAR_domain_contact_phone: ${{ secrets.DOMAIN_CONTACT_PHONE }}
+          TF_VAR_domain_contact_address: ${{ secrets.DOMAIN_CONTACT_ADDRESS }}
+          TF_VAR_domain_contact_city: ${{ secrets.DOMAIN_CONTACT_CITY }}
+          TF_VAR_domain_contact_state: ${{ secrets.DOMAIN_CONTACT_STATE }}
+          TF_VAR_domain_contact_zip: ${{ secrets.DOMAIN_CONTACT_ZIP }}
+          # Domain names
+          TF_VAR_prod_domain_name: ${{ secrets.PROD_DOMAIN_NAME }}
+          TF_VAR_dev_domain_name: ${{ secrets.DEV_DOMAIN_NAME }}
+        run: terraform apply -auto-approve tfplan
+
+  terraform-apply-prod:
+    name: Terraform Apply (Prod)
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      matrix:
+        environment: [mgmt, prod]
+      max-parallel: 1  # Apply mgmt first, then prod
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.10.7"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', matrix.environment)] }}
+          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
+
+      - name: Terraform Init
+        working-directory: infra/terraform/${{ matrix.environment }}
+        run: terraform init
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ matrix.environment }}
+          path: infra/terraform/${{ matrix.environment }}
+
+      - name: Terraform Apply
+        working-directory: infra/terraform/${{ matrix.environment }}
+        env:
+          # Management account sensitive variables
+          TF_VAR_dev_account_email: ${{ secrets.DEV_ACCOUNT_EMAIL }}
+          TF_VAR_prod_account_email: ${{ secrets.PROD_ACCOUNT_EMAIL }}
+          TF_VAR_domain_contact_email: ${{ secrets.DOMAIN_CONTACT_EMAIL }}
+          TF_VAR_domain_contact_first_name: ${{ secrets.DOMAIN_CONTACT_FIRST_NAME }}
+          TF_VAR_domain_contact_last_name: ${{ secrets.DOMAIN_CONTACT_LAST_NAME }}
+          TF_VAR_domain_contact_phone: ${{ secrets.DOMAIN_CONTACT_PHONE }}
+          TF_VAR_domain_contact_address: ${{ secrets.DOMAIN_CONTACT_ADDRESS }}
+          TF_VAR_domain_contact_city: ${{ secrets.DOMAIN_CONTACT_CITY }}
+          TF_VAR_domain_contact_state: ${{ secrets.DOMAIN_CONTACT_STATE }}
+          TF_VAR_domain_contact_zip: ${{ secrets.DOMAIN_CONTACT_ZIP }}
+          # Domain names
+          TF_VAR_prod_domain_name: ${{ secrets.PROD_DOMAIN_NAME }}
+          TF_VAR_dev_domain_name: ${{ secrets.DEV_DOMAIN_NAME }}
+        run: terraform apply -auto-approve tfplan

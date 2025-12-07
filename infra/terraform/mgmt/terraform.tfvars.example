@@ -1,0 +1,22 @@
+# AWS Configuration
+aws_region = "us-east-1"
+
+# Domain Configuration
+prod_domain_name = "crowdunlocked.com"      # Production domain
+dev_domain_name  = "crowdunlockedbeta.com"  # Development domain
+
+# AWS Account Emails (must be unique)
+dev_account_email  = "aws-dev@crowdunlocked.com"
+prod_account_email = "aws-prod@crowdunlocked.com"
+
+# Domain Registration Contact Information
+domain_contact_type       = "COMPANY"  # or "PERSON"
+domain_contact_email      = "admin@crowdunlocked.com"
+domain_contact_first_name = "John"
+domain_contact_last_name  = "Doe"
+domain_contact_phone      = "+1.5551234567"  # Format: +[country code].[number]
+domain_contact_address    = "123 Main Street"
+domain_contact_city       = "San Francisco"
+domain_contact_state      = "CA"
+domain_contact_zip        = "94102"
+domain_contact_country    = "US"

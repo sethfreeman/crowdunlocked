@@ -1,0 +1,13 @@
+**/.git
+**/.gitignore
+**/node_modules
+**/dist
+**/build
+**/.next
+**/.terraform
+*.md
+.vscode
+.idea
+*.log
+coverage.txt
+bin/
