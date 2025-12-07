@@ -37,6 +37,12 @@ resource "aws_eks_cluster" "main" {
     node_role_arn = aws_iam_role.eks_node.arn
   }
 
+  kubernetes_network_config {
+    elastic_load_balancing {
+      enabled = true
+    }
+  }
+
   storage_config {
     block_storage {
       enabled = true
