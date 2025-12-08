@@ -254,6 +254,10 @@ jobs:
           name: tfplan-mgmt-${{ github.run_id }}
           path: infra/terraform/mgmt
 
+      - name: Debug - List files
+        working-directory: infra/terraform/mgmt
+        run: ls -la
+
       - name: OpenTofu Apply
         working-directory: infra/terraform/mgmt
         run: tofu apply -auto-approve tfplan
