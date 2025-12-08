@@ -99,8 +99,7 @@ Following https://12factor.net principles:
 - Use AWS Secrets Manager for application secrets
 - Use GitHub Secrets for CI/CD credentials
 - Rotate secrets regularly
-- **Temporary:** Using AWS access keys for CI/CD (github-actions-ci user in each account)
-- **Goal:** Switch to OIDC for AWS authentication (no long-lived keys) once GitHub Actions issue is resolved
+- **Using OIDC for AWS authentication** - No long-lived access keys in CI/CD
 
 ### API Keys
 - Store in AWS Secrets Manager
@@ -130,20 +129,23 @@ Following https://12factor.net principles:
 ### ✅ Implemented
 - TDD for venue search feature
 - Infrastructure as code (terraform)
-- GitHub Actions CI/CD pipelines
+- GitHub Actions CI/CD pipelines with OIDC authentication
 - Separate dev/prod environments
 - Automated testing in CI/CD
+- ECR repositories for container images
+- DynamoDB tables for all services
 
 ### 🚧 In Progress
+- EKS cluster deployment
 - Certificate management
 - Google Places API integration
 
 ### 📋 TODO
-- **Fix OIDC authentication** - Currently using access keys temporarily due to GitHub Actions secret interpolation issues
 - E2E testing framework
 - Performance testing
 - Security scanning in CI/CD
 - Automated dependency updates
+- Clean up old dev account (987470856210)
 
 ## When CI/CD is Broken
 
