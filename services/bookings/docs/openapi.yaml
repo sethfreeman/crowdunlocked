@@ -1,0 +1,657 @@
+openapi: 3.0.3
+info:
+  title: CrowdUnlocked Bookings API
+  description: |
+    API for managing venue bookings and venue discovery for artists.
+    
+    Features:
+    - Geospatial venue search with radius filtering
+    - Multi-criteria filtering (type, capacity, genres, payment)
+    - Venue CRUD operations
+    - Booking management
+  version: 1.0.0
+  contact:
+    name: CrowdUnlocked
+    url: https://crowdunlocked.com
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+  - url: https://api.crowdunlockedbeta.com/api/v1
+    description: Development environment
+  - url: https://api.crowdunlocked.com/api/v1
+    description: Production environment
+
+tags:
+  - name: venues
+    description: Venue discovery and management
+  - name: bookings
+    description: Booking management
+  - name: health
+    description: Health checks
+
+paths:
+  /venues/search:
+    get:
+      tags:
+        - venues
+      summary: Search venues
+      description: |
+        Search for venues with flexible filtering and sorting.
+        Supports location-based search, city search, and type filtering.
+      operationId: searchVenues
+      parameters:
+        - name: lat
+          in: query
+          description: Latitude for location search
+          schema:
+            type: number
+            format: double
+            example: 37.7749
+        - name: lng
+          in: query
+          description: Longitude for location search
+          schema:
+            type: number
+            format: double
+            example: -122.4194
+        - name: radius
+          in: query
+          description: Search radius in kilometers
+          schema:
+            type: number
+            format: double
+            example: 5.0
+        - name: city
+          in: query
+          description: City name
+          schema:
+            type: string
+            example: San Francisco
+        - name: state
+          in: query
+          description: State/province code
+          schema:
+            type: string
+            example: CA
+        - name: country
+          in: query
+          description: Country code
+          schema:
+            type: string
+            example: US
+        - name: venue_types
+          in: query
+          description: Comma-separated venue types
+          schema:
+            type: string
+            example: brewery,winery
+        - name: min_capacity
+          in: query
+          description: Minimum venue capacity
+          schema:
+            type: integer
+            example: 50
+        - name: max_capacity
+          in: query
+          description: Maximum venue capacity
+          schema:
+            type: integer
+            example: 500
+        - name: genres
+          in: query
+          description: Comma-separated genres
+          schema:
+            type: string
+            example: rock,indie
+        - name: min_pay
+          in: query
+          description: Minimum payment amount
+          schema:
+            type: integer
+            example: 100
+        - name: max_pay
+          in: query
+          description: Maximum payment amount
+          schema:
+            type: integer
+            example: 1000
+        - name: min_rating
+          in: query
+          description: Minimum rating (0-5)
+          schema:
+            type: number
+            format: double
+            example: 4.0
+        - name: verified_only
+          in: query
+          description: Only verified venues
+          schema:
+            type: boolean
+            example: true
+        - name: active_only
+          in: query
+          description: Only active venues
+          schema:
+            type: boolean
+            example: true
+        - name: limit
+          in: query
+          description: Results per page
+          schema:
+            type: integer
+            default: 10
+            example: 20
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+            example: 0
+        - name: sort_by
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [distance, rating, capacity, pay, name, created_at]
+            example: rating
+        - name: sort_order
+          in: query
+          description: Sort direction
+          schema:
+            type: string
+            enum: [asc, desc]
+            example: desc
+      responses:
+        '200':
+          description: Successful search
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VenueSearchResult'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /venues/{id}:
+    get:
+      tags:
+        - venues
+      summary: Get venue by ID
+      description: Retrieve detailed information about a specific venue
+      operationId: getVenueById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Venue ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Venue found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venue'
+        '404':
+          description: Venue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - venues
+      summary: Update venue
+      description: Update an existing venue (partial update supported)
+      operationId: updateVenue
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Venue ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVenueRequest'
+      responses:
+        '200':
+          description: Venue updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venue'
+        '404':
+          description: Venue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - venues
+      summary: Delete venue
+      description: Delete a venue
+      operationId: deleteVenue
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Venue ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Venue deleted
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /venues:
+    post:
+      tags:
+        - venues
+      summary: Create venue
+      description: Create a new venue (user-submitted)
+      operationId: createVenue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVenueRequest'
+      responses:
+        '201':
+          description: Venue created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venue'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings:
+    post:
+      tags:
+        - bookings
+      summary: Create booking
+      description: Create a new booking request
+      operationId: createBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{id}:
+    get:
+      tags:
+        - bookings
+      summary: Get booking by ID
+      description: Retrieve booking details
+      operationId: getBookingById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Booking ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Booking found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{id}/confirm:
+    post:
+      tags:
+        - bookings
+      summary: Confirm booking
+      description: Confirm a pending booking
+      operationId: confirmBooking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Booking ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Booking confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      tags:
+        - health
+      summary: Health check
+      description: Check service health status
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+
+components:
+  schemas:
+    Venue:
+      type: object
+      required:
+        - id
+        - name
+        - location
+        - address
+        - venue_types
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        location:
+          $ref: '#/components/schemas/GeoPoint'
+        address:
+          $ref: '#/components/schemas/Address'
+        venue_types:
+          type: array
+          items:
+            type: string
+            enum: [club, theater, brewery, winery, coffeehouse, festival, bar, restaurant, arena, other]
+        capacity:
+          type: integer
+        genres:
+          type: array
+          items:
+            type: string
+        pay_range:
+          $ref: '#/components/schemas/PayRange'
+        amenities:
+          type: array
+          items:
+            type: string
+        photos:
+          type: array
+          items:
+            type: string
+            format: uri
+        contact_info:
+          $ref: '#/components/schemas/ContactInfo'
+        rating:
+          type: number
+          format: double
+        review_count:
+          type: integer
+        description:
+          type: string
+        verified:
+          type: boolean
+        active:
+          type: boolean
+        source:
+          type: string
+          enum: [songkick, bandsintown, google_places, user_submitted, manual]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    GeoPoint:
+      type: object
+      required:
+        - latitude
+        - longitude
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        geohash:
+          type: string
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postal_code:
+          type: string
+        country:
+          type: string
+
+    PayRange:
+      type: object
+      properties:
+        min:
+          type: integer
+        max:
+          type: integer
+        currency:
+          type: string
+        type:
+          type: string
+          enum: [guarantee, door_split, bar_tab, ticket_sales, none]
+        notes:
+          type: string
+
+    ContactInfo:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        website:
+          type: string
+          format: uri
+        booking_url:
+          type: string
+          format: uri
+        contact_name:
+          type: string
+
+    VenueWithDistance:
+      type: object
+      properties:
+        venue:
+          $ref: '#/components/schemas/Venue'
+        distance_km:
+          type: number
+          format: double
+
+    VenueSearchResult:
+      type: object
+      properties:
+        venues:
+          type: array
+          items:
+            $ref: '#/components/schemas/VenueWithDistance'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        has_more:
+          type: boolean
+
+    CreateVenueRequest:
+      type: object
+      required:
+        - name
+        - location
+        - venue_types
+      properties:
+        name:
+          type: string
+        location:
+          type: object
+          required:
+            - latitude
+            - longitude
+          properties:
+            latitude:
+              type: number
+              format: double
+            longitude:
+              type: number
+              format: double
+        address:
+          $ref: '#/components/schemas/Address'
+        venue_types:
+          type: array
+          items:
+            type: string
+        capacity:
+          type: integer
+        genres:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+
+    UpdateVenueRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        location:
+          type: object
+          properties:
+            latitude:
+              type: number
+              format: double
+            longitude:
+              type: number
+              format: double
+        address:
+          $ref: '#/components/schemas/Address'
+        venue_types:
+          type: array
+          items:
+            type: string
+        capacity:
+          type: integer
+        genres:
+          type: array
+          items:
+            type: string
+        description:
+          type: string
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+        artist_id:
+          type: string
+        venue_id:
+          type: string
+        event_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled]
+        fee:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateBookingRequest:
+      type: object
+      required:
+        - artist_id
+        - venue_id
+        - event_date
+        - fee
+      properties:
+        artist_id:
+          type: string
+        venue_id:
+          type: string
+        event_date:
+          type: string
+          format: date-time
+        fee:
+          type: number
+          format: double
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
