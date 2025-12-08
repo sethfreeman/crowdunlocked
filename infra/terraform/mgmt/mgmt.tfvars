@@ -11,3 +11,7 @@ dev_domain_name  = "crowdunlockedbeta.com"
 # GitHub repository for OIDC
 github_org  = "sethfreeman"
 github_repo = "crowdunlocked"
+
+# AWS Account IDs (from manual account creation)
+dev_account_id  = "987470856210"
+prod_account_id = "379211248770"

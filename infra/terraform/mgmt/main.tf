@@ -53,3 +53,39 @@ module "github_oidc" {
   github_org  = var.github_org
   github_repo = var.github_repo
 }
+
+# Terraform state bucket (created manually during bootstrap)
+data "aws_s3_bucket" "terraform_state" {
+  bucket = "crowdunlocked-terraform-state"
+}
+
+# Allow dev and prod OIDC roles to access state bucket
+resource "aws_s3_bucket_policy" "terraform_state" {
+  bucket = data.aws_s3_bucket.terraform_state.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowDevProdOIDCAccess"
+        Effect = "Allow"
+        Principal = {
+          AWS = [
+            "arn:aws:iam::${var.dev_account_id}:role/github-actions-dev",
+            "arn:aws:iam::${var.prod_account_id}:role/github-actions-prod"
+          ]
+        }
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          data.aws_s3_bucket.terraform_state.arn,
+          "${data.aws_s3_bucket.terraform_state.arn}/*"
+        ]
+      }
+    ]
+  })
+}
