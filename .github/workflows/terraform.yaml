@@ -29,14 +29,9 @@ permissions:
   statuses: write
 
 jobs:
-  terraform-plan:
-    name: OpenTofu Plan
+  plan-mgmt:
+    name: OpenTofu Plan (mgmt)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        environment: [mgmt, dev, prod]
-      max-parallel: 1  # Run sequentially to avoid state lock conflicts
-    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,48 +44,37 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ matrix.environment == 'mgmt' && secrets.AWS_ACCESS_KEY_ID_MGMT || matrix.environment == 'dev' && secrets.AWS_ACCESS_KEY_ID_DEV || secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ matrix.environment == 'mgmt' && secrets.AWS_SECRET_ACCESS_KEY_MGMT || matrix.environment == 'dev' && secrets.AWS_SECRET_ACCESS_KEY_DEV || secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_MGMT }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_MGMT }}
+          aws-region: us-east-1
 
       - name: OpenTofu Init
-        working-directory: infra/terraform/${{ matrix.environment }}
+        working-directory: infra/terraform/mgmt
         run: tofu init
 
       - name: OpenTofu Format
-        working-directory: infra/terraform/${{ matrix.environment }}
-        run: tofu fmt  # Auto-format files
+        working-directory: infra/terraform/mgmt
+        run: tofu fmt
 
       - name: OpenTofu Validate
-        working-directory: infra/terraform/${{ matrix.environment }}
+        working-directory: infra/terraform/mgmt
         run: tofu validate
 
       - name: OpenTofu Plan
-        working-directory: infra/terraform/${{ matrix.environment }}
-        run: |
-          if [ "${{ matrix.environment }}" = "mgmt" ]; then
-            tofu plan -var-file=mgmt.tfvars -out=tfplan
-          else
-            tofu plan -var-file=${{ matrix.environment }}.tfvars -out=tfplan
-          fi
+        working-directory: infra/terraform/mgmt
+        run: tofu plan -var-file=mgmt.tfvars -out=tfplan
 
       - name: Upload Plan
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-${{ matrix.environment }}
-          path: infra/terraform/${{ matrix.environment }}/tfplan
+          name: tfplan-mgmt
+          path: infra/terraform/mgmt/tfplan
           retention-days: 5
 
-  terraform-apply-dev:
-    name: OpenTofu Apply (Dev)
+  plan-dev:
+    name: OpenTofu Plan (dev)
     runs-on: ubuntu-latest
-    needs: terraform-plan
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    strategy:
-      matrix:
-        environment: [mgmt, dev]
-      max-parallel: 1  # Apply mgmt first, then dev
-    
+    needs: plan-mgmt
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,34 +87,116 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ matrix.environment == 'mgmt' && secrets.AWS_ACCESS_KEY_ID_MGMT || secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ matrix.environment == 'mgmt' && secrets.AWS_SECRET_ACCESS_KEY_MGMT || secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: us-west-2
 
       - name: OpenTofu Init
-        working-directory: infra/terraform/${{ matrix.environment }}
+        working-directory: infra/terraform/dev
+        run: tofu init
+
+      - name: OpenTofu Format
+        working-directory: infra/terraform/dev
+        run: tofu fmt
+
+      - name: OpenTofu Validate
+        working-directory: infra/terraform/dev
+        run: tofu validate
+
+      - name: OpenTofu Plan
+        working-directory: infra/terraform/dev
+        run: tofu plan -var-file=dev.tfvars -out=tfplan
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-dev
+          path: infra/terraform/dev/tfplan
+          retention-days: 5
+
+  plan-prod:
+    name: OpenTofu Plan (prod)
+    runs-on: ubuntu-latest
+    needs: plan-dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.10.7"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-west-2
+
+      - name: OpenTofu Init
+        working-directory: infra/terraform/prod
+        run: tofu init
+
+      - name: OpenTofu Format
+        working-directory: infra/terraform/prod
+        run: tofu fmt
+
+      - name: OpenTofu Validate
+        working-directory: infra/terraform/prod
+        run: tofu validate
+
+      - name: OpenTofu Plan
+        working-directory: infra/terraform/prod
+        run: tofu plan -var-file=prod.tfvars -out=tfplan
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-prod
+          path: infra/terraform/prod/tfplan
+          retention-days: 5
+
+  apply-mgmt-dev:
+    name: OpenTofu Apply (mgmt)
+    runs-on: ubuntu-latest
+    needs: [plan-mgmt, plan-dev, plan-prod]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.10.7"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_MGMT }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_MGMT }}
+          aws-region: us-east-1
+
+      - name: OpenTofu Init
+        working-directory: infra/terraform/mgmt
         run: tofu init
 
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-${{ matrix.environment }}
-          path: infra/terraform/${{ matrix.environment }}
+          name: tfplan-mgmt
+          path: infra/terraform/mgmt
 
       - name: OpenTofu Apply
-        working-directory: infra/terraform/${{ matrix.environment }}
+        working-directory: infra/terraform/mgmt
         run: tofu apply -auto-approve tfplan
 
-  terraform-apply-prod:
-    name: OpenTofu Apply (Prod)
+  apply-dev:
+    name: OpenTofu Apply (dev)
     runs-on: ubuntu-latest
-    needs: terraform-plan
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    strategy:
-      matrix:
-        environment: [mgmt, prod]
-      max-parallel: 1  # Apply mgmt first, then prod
-    
+    needs: apply-mgmt-dev
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -143,20 +209,90 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ matrix.environment == 'mgmt' && secrets.AWS_ACCESS_KEY_ID_MGMT || secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ matrix.environment == 'mgmt' && secrets.AWS_SECRET_ACCESS_KEY_MGMT || secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: us-west-2
 
       - name: OpenTofu Init
-        working-directory: infra/terraform/${{ matrix.environment }}
+        working-directory: infra/terraform/dev
         run: tofu init
 
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-${{ matrix.environment }}
-          path: infra/terraform/${{ matrix.environment }}
+          name: tfplan-dev
+          path: infra/terraform/dev
 
       - name: OpenTofu Apply
-        working-directory: infra/terraform/${{ matrix.environment }}
+        working-directory: infra/terraform/dev
+        run: tofu apply -auto-approve tfplan
+
+  apply-mgmt-prod:
+    name: OpenTofu Apply (mgmt for prod)
+    runs-on: ubuntu-latest
+    needs: [plan-mgmt, plan-dev, plan-prod]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.10.7"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_MGMT }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_MGMT }}
+          aws-region: us-east-1
+
+      - name: OpenTofu Init
+        working-directory: infra/terraform/mgmt
+        run: tofu init
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-mgmt
+          path: infra/terraform/mgmt
+
+      - name: OpenTofu Apply
+        working-directory: infra/terraform/mgmt
+        run: tofu apply -auto-approve tfplan
+
+  apply-prod:
+    name: OpenTofu Apply (prod)
+    runs-on: ubuntu-latest
+    needs: apply-mgmt-prod
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.10.7"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-west-2
+
+      - name: OpenTofu Init
+        working-directory: infra/terraform/prod
+        run: tofu init
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-prod
+          path: infra/terraform/prod
+
+      - name: OpenTofu Apply
+        working-directory: infra/terraform/prod
         run: tofu apply -auto-approve tfplan
