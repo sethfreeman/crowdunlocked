@@ -329,14 +329,8 @@ resource "aws_cloudwatch_metric_alarm" "high_error_rate" {
   treat_missing_data  = "notBreaching"
 }
 
-# GitHub OIDC for CI/CD
-module "github_oidc" {
-  source = "../modules/github-oidc"
-
-  environment = "prod"
-  github_org  = var.github_org
-  github_repo = var.github_repo
-}
+# NOTE: GitHub OIDC provider and role created manually via scripts/create-oidc-role.sh
+# Not managed by terraform to avoid chicken-and-egg problem
 
 # ECR Repositories for container images
 locals {

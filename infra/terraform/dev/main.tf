@@ -32,10 +32,12 @@ resource "aws_eks_cluster" "main" {
   }
 
   compute_config {
-    enabled       = true
-    node_pools    = ["general-purpose"]
-    node_role_arn = aws_iam_role.eks_node.arn
+    enabled                      = true
+    node_pools                   = ["general-purpose"]
+    node_role_arn                = aws_iam_role.eks_node.arn
   }
+
+  bootstrap_self_managed_addons = false
 
   kubernetes_network_config {
     elastic_load_balancing {
@@ -356,14 +358,8 @@ resource "aws_cloudwatch_metric_alarm" "high_error_rate" {
   treat_missing_data  = "notBreaching"
 }
 
-# GitHub OIDC for CI/CD
-module "github_oidc" {
-  source = "../modules/github-oidc"
-
-  environment = "dev"
-  github_org  = var.github_org
-  github_repo = var.github_repo
-}
+# NOTE: GitHub OIDC provider and role created manually via scripts/create-oidc-role.sh
+# Not managed by terraform to avoid chicken-and-egg problem
 
 # ECR Repositories for container images
 # These repositories store Docker images for our microservices

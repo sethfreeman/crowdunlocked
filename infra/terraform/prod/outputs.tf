@@ -17,8 +17,3 @@ output "cloudfront_domain_name" {
 output "alb_dns_name" {
   value = aws_lb.main.dns_name
 }
-
-output "github_actions_role_arn" {
-  description = "ARN of the GitHub Actions IAM role for prod account"
-  value       = module.github_oidc.role_arn
-}

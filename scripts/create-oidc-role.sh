@@ -91,13 +91,15 @@ cat > /tmp/role-policy-$ENVIRONMENT.json <<EOF
         "iam:*",
         "dynamodb:*",
         "logs:*",
+        "cloudwatch:*",
         "cloudfront:*",
         "acm:*",
         "route53:*",
         "secretsmanager:*",
         "kms:*",
         "autoscaling:*",
-        "elasticloadbalancing:*"
+        "elasticloadbalancing:*",
+        "ecr:*"
       ],
       "Resource": "*"
     }
@@ -111,10 +113,10 @@ aws iam put-role-policy \
   --policy-name terraform-permissions \
   --policy-document file:///tmp/role-policy-$ENVIRONMENT.json
 
-echo "Attaching ECR policy to role..."
+echo "Attaching ECR full access policy to role..."
 aws iam attach-role-policy \
   --role-name $ROLE_NAME \
-  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
 
 echo "Attaching Organizations read-only policy to role..."
 aws iam attach-role-policy \
