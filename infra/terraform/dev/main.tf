@@ -364,3 +364,81 @@ module "github_oidc" {
   github_org  = var.github_org
   github_repo = var.github_repo
 }
+
+# ECR Repositories for container images
+locals {
+  services = ["bookings", "releases", "publicity", "social", "money"]
+}
+
+resource "aws_ecr_repository" "services" {
+  for_each = toset(local.services)
+  name     = "crowdunlocked/${each.key}"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  image_tag_mutability = "MUTABLE"
+
+  tags = {
+    Name        = "crowdunlocked-${each.key}"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_ecr_repository" "web" {
+  name = "crowdunlocked/web"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  image_tag_mutability = "MUTABLE"
+
+  tags = {
+    Name        = "crowdunlocked-web"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+# Lifecycle policy to keep only recent images
+resource "aws_ecr_lifecycle_policy" "services" {
+  for_each   = toset(local.services)
+  repository = aws_ecr_repository.services[each.key].name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "web" {
+  repository = aws_ecr_repository.web.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
