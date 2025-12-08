@@ -37,6 +37,12 @@ resource "aws_eks_cluster" "main" {
     node_role_arn = aws_iam_role.eks_node.arn
   }
 
+  kubernetes_network_config {
+    elastic_load_balancing {
+      enabled = true
+    }
+  }
+
   storage_config {
     block_storage {
       enabled = true
@@ -139,8 +145,39 @@ resource "aws_dynamodb_table" "bookings" {
   }
 }
 
-# CloudFront Distribution
+# Check if mgmt state exists by trying to read it
+# This will return null if the state doesn't exist yet
+data "external" "mgmt_state_check" {
+  program = ["sh", "-c", <<-EOT
+    if aws s3api head-object --bucket crowdunlocked-terraform-state --key mgmt/terraform.tfstate --region us-east-1 2>/dev/null; then
+      echo '{"exists":"true"}'
+    else
+      echo '{"exists":"false"}'
+    fi
+  EOT
+  ]
+}
+
+# Only read mgmt state if it exists
+data "terraform_remote_state" "mgmt" {
+  count   = data.external.mgmt_state_check.result.exists == "true" ? 1 : 0
+  backend = "s3"
+  config = {
+    bucket = "crowdunlocked-terraform-state"
+    key    = "mgmt/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+locals {
+  acm_certificate_arn = length(data.terraform_remote_state.mgmt) > 0 ? data.terraform_remote_state.mgmt[0].outputs.prod_acm_certificate_arn : null
+  has_certificate     = local.acm_certificate_arn != null
+}
+
+# CloudFront Distribution (only created after mgmt account deploys certificates)
 resource "aws_cloudfront_distribution" "main" {
+  count = local.has_certificate ? 1 : 0
+
   enabled             = true
   is_ipv6_enabled     = true
   comment             = "Crowd Unlocked Production CDN"
@@ -186,15 +223,10 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = data.aws_acm_certificate.main.arn
+    acm_certificate_arn      = local.acm_certificate_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
-}
-
-data "aws_acm_certificate" "main" {
-  domain   = var.domain_name
-  statuses = ["ISSUED"]
 }
 
 resource "aws_lb" "main" {

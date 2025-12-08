@@ -27,3 +27,4 @@ domain_contact_country = "US"
 # - TF_VAR_domain_contact_city
 # - TF_VAR_domain_contact_state
 # - TF_VAR_domain_contact_zip
+# Deploying AWS infrastructure
