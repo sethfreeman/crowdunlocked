@@ -44,26 +44,25 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
-      - name: Configure AWS Credentials (mgmt)
-        if: matrix.environment == 'mgmt'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_MGMT }}
-          aws-region: us-east-1
+      - name: Set Role ARN
+        id: role
+        run: |
+          if [ "${{ matrix.environment }}" = "mgmt" ]; then
+            echo "arn=${{ secrets.AWS_ROLE_MGMT }}" >> $GITHUB_OUTPUT
+            echo "region=us-east-1" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.environment }}" = "dev" ]; then
+            echo "arn=${{ secrets.AWS_ROLE_DEV }}" >> $GITHUB_OUTPUT
+            echo "region=us-west-2" >> $GITHUB_OUTPUT
+          else
+            echo "arn=${{ secrets.AWS_ROLE_PROD }}" >> $GITHUB_OUTPUT
+            echo "region=us-west-2" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Configure AWS Credentials (dev)
-        if: matrix.environment == 'dev'
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
-          aws-region: us-west-2
-
-      - name: Configure AWS Credentials (prod)
-        if: matrix.environment == 'prod'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_PROD }}
-          aws-region: us-west-2
+          role-to-assume: ${{ steps.role.outputs.arn }}
+          aws-region: ${{ steps.role.outputs.region }}
 
       - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
@@ -112,19 +111,22 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
-      - name: Configure AWS Credentials (mgmt)
-        if: matrix.environment == 'mgmt'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_MGMT }}
-          aws-region: us-east-1
+      - name: Set Role ARN
+        id: role
+        run: |
+          if [ "${{ matrix.environment }}" = "mgmt" ]; then
+            echo "arn=${{ secrets.AWS_ROLE_MGMT }}" >> $GITHUB_OUTPUT
+            echo "region=us-east-1" >> $GITHUB_OUTPUT
+          else
+            echo "arn=${{ secrets.AWS_ROLE_DEV }}" >> $GITHUB_OUTPUT
+            echo "region=us-west-2" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Configure AWS Credentials (dev)
-        if: matrix.environment == 'dev'
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
-          aws-region: us-west-2
+          role-to-assume: ${{ steps.role.outputs.arn }}
+          aws-region: ${{ steps.role.outputs.region }}
 
       - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
@@ -159,19 +161,22 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
-      - name: Configure AWS Credentials (mgmt)
-        if: matrix.environment == 'mgmt'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_MGMT }}
-          aws-region: us-east-1
+      - name: Set Role ARN
+        id: role
+        run: |
+          if [ "${{ matrix.environment }}" = "mgmt" ]; then
+            echo "arn=${{ secrets.AWS_ROLE_MGMT }}" >> $GITHUB_OUTPUT
+            echo "region=us-east-1" >> $GITHUB_OUTPUT
+          else
+            echo "arn=${{ secrets.AWS_ROLE_PROD }}" >> $GITHUB_OUTPUT
+            echo "region=us-west-2" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Configure AWS Credentials (prod)
-        if: matrix.environment == 'prod'
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_PROD }}
-          aws-region: us-west-2
+          role-to-assume: ${{ steps.role.outputs.arn }}
+          aws-region: ${{ steps.role.outputs.region }}
 
       - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
