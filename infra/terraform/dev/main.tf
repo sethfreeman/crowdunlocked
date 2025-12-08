@@ -369,3 +369,12 @@ resource "aws_cloudwatch_metric_alarm" "high_error_rate" {
   alarm_description   = "High error rate for ${each.key} service"
   treat_missing_data  = "notBreaching"
 }
+
+# GitHub OIDC for CI/CD
+module "github_oidc" {
+  source = "../modules/github-oidc"
+
+  environment = "dev"
+  github_org  = var.github_org
+  github_repo = var.github_repo
+}

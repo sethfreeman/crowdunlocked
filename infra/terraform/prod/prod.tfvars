@@ -6,3 +6,7 @@ environment = "prod"
 
 # Production domain name
 domain_name = "crowdunlocked.com"
+
+# GitHub repository for OIDC
+github_org  = "sethfreeman"
+github_repo = "crowdunlocked"

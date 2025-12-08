@@ -76,3 +76,13 @@ variable "domain_contact_country" {
   type        = string
   default     = "US"
 }
+
+variable "github_org" {
+  description = "GitHub organization name"
+  type        = string
+}
+
+variable "github_repo" {
+  description = "GitHub repository name"
+  type        = string
+}

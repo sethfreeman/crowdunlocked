@@ -252,3 +252,12 @@ resource "aws_acm_certificate_validation" "dev" {
   certificate_arn         = aws_acm_certificate.dev.arn
   validation_record_fqdns = [for record in aws_route53_record.dev_cert_validation : record.fqdn]
 }
+
+# GitHub OIDC for CI/CD
+module "github_oidc" {
+  source = "../modules/github-oidc"
+
+  environment = "mgmt"
+  github_org  = var.github_org
+  github_repo = var.github_repo
+}
