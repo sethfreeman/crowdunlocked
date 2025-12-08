@@ -64,21 +64,6 @@ jobs:
 
       - name: OpenTofu Plan
         working-directory: infra/terraform/${{ matrix.environment }}
-        env:
-          # Management account sensitive variables
-          TF_VAR_dev_account_email: ${{ secrets.DEV_ACCOUNT_EMAIL }}
-          TF_VAR_prod_account_email: ${{ secrets.PROD_ACCOUNT_EMAIL }}
-          TF_VAR_domain_contact_email: ${{ secrets.DOMAIN_CONTACT_EMAIL }}
-          TF_VAR_domain_contact_first_name: ${{ secrets.DOMAIN_CONTACT_FIRST_NAME }}
-          TF_VAR_domain_contact_last_name: ${{ secrets.DOMAIN_CONTACT_LAST_NAME }}
-          TF_VAR_domain_contact_phone: ${{ secrets.DOMAIN_CONTACT_PHONE }}
-          TF_VAR_domain_contact_address: ${{ secrets.DOMAIN_CONTACT_ADDRESS }}
-          TF_VAR_domain_contact_city: ${{ secrets.DOMAIN_CONTACT_CITY }}
-          TF_VAR_domain_contact_state: ${{ secrets.DOMAIN_CONTACT_STATE }}
-          TF_VAR_domain_contact_zip: ${{ secrets.DOMAIN_CONTACT_ZIP }}
-          # Domain names
-          TF_VAR_prod_domain_name: ${{ secrets.PROD_DOMAIN_NAME }}
-          TF_VAR_dev_domain_name: ${{ secrets.DEV_DOMAIN_NAME }}
         run: |
           if [ "${{ matrix.environment }}" = "mgmt" ]; then
             tofu plan -var-file=mgmt.tfvars -out=tfplan
@@ -130,21 +115,6 @@ jobs:
 
       - name: OpenTofu Apply
         working-directory: infra/terraform/${{ matrix.environment }}
-        env:
-          # Management account sensitive variables
-          TF_VAR_dev_account_email: ${{ secrets.DEV_ACCOUNT_EMAIL }}
-          TF_VAR_prod_account_email: ${{ secrets.PROD_ACCOUNT_EMAIL }}
-          TF_VAR_domain_contact_email: ${{ secrets.DOMAIN_CONTACT_EMAIL }}
-          TF_VAR_domain_contact_first_name: ${{ secrets.DOMAIN_CONTACT_FIRST_NAME }}
-          TF_VAR_domain_contact_last_name: ${{ secrets.DOMAIN_CONTACT_LAST_NAME }}
-          TF_VAR_domain_contact_phone: ${{ secrets.DOMAIN_CONTACT_PHONE }}
-          TF_VAR_domain_contact_address: ${{ secrets.DOMAIN_CONTACT_ADDRESS }}
-          TF_VAR_domain_contact_city: ${{ secrets.DOMAIN_CONTACT_CITY }}
-          TF_VAR_domain_contact_state: ${{ secrets.DOMAIN_CONTACT_STATE }}
-          TF_VAR_domain_contact_zip: ${{ secrets.DOMAIN_CONTACT_ZIP }}
-          # Domain names
-          TF_VAR_prod_domain_name: ${{ secrets.PROD_DOMAIN_NAME }}
-          TF_VAR_dev_domain_name: ${{ secrets.DEV_DOMAIN_NAME }}
         run: tofu apply -auto-approve tfplan
 
   terraform-apply-prod:
@@ -184,19 +154,4 @@ jobs:
 
       - name: OpenTofu Apply
         working-directory: infra/terraform/${{ matrix.environment }}
-        env:
-          # Management account sensitive variables
-          TF_VAR_dev_account_email: ${{ secrets.DEV_ACCOUNT_EMAIL }}
-          TF_VAR_prod_account_email: ${{ secrets.PROD_ACCOUNT_EMAIL }}
-          TF_VAR_domain_contact_email: ${{ secrets.DOMAIN_CONTACT_EMAIL }}
-          TF_VAR_domain_contact_first_name: ${{ secrets.DOMAIN_CONTACT_FIRST_NAME }}
-          TF_VAR_domain_contact_last_name: ${{ secrets.DOMAIN_CONTACT_LAST_NAME }}
-          TF_VAR_domain_contact_phone: ${{ secrets.DOMAIN_CONTACT_PHONE }}
-          TF_VAR_domain_contact_address: ${{ secrets.DOMAIN_CONTACT_ADDRESS }}
-          TF_VAR_domain_contact_city: ${{ secrets.DOMAIN_CONTACT_CITY }}
-          TF_VAR_domain_contact_state: ${{ secrets.DOMAIN_CONTACT_STATE }}
-          TF_VAR_domain_contact_zip: ${{ secrets.DOMAIN_CONTACT_ZIP }}
-          # Domain names
-          TF_VAR_prod_domain_name: ${{ secrets.PROD_DOMAIN_NAME }}
-          TF_VAR_dev_domain_name: ${{ secrets.DEV_DOMAIN_NAME }}
         run: tofu apply -auto-approve tfplan
