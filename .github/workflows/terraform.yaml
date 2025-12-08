@@ -44,6 +44,11 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
+      - name: Debug environment
+        run: |
+          echo "Environment: ${{ matrix.environment }}"
+          echo "Role ARN will be selected based on environment"
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
