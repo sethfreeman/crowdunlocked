@@ -99,7 +99,8 @@ Following https://12factor.net principles:
 - Use AWS Secrets Manager for application secrets
 - Use GitHub Secrets for CI/CD credentials
 - Rotate secrets regularly
-- Use OIDC for AWS authentication (no long-lived keys)
+- **Temporary:** Using AWS access keys for CI/CD (github-actions-ci user in each account)
+- **Goal:** Switch to OIDC for AWS authentication (no long-lived keys) once GitHub Actions issue is resolved
 
 ### API Keys
 - Store in AWS Secrets Manager
@@ -131,15 +132,14 @@ Following https://12factor.net principles:
 - Infrastructure as code (terraform)
 - GitHub Actions CI/CD pipelines
 - Separate dev/prod environments
-- OIDC authentication for AWS
 - Automated testing in CI/CD
 
 ### 🚧 In Progress
-- OIDC roles deployment
 - Certificate management
 - Google Places API integration
 
 ### 📋 TODO
+- **Fix OIDC authentication** - Currently using access keys temporarily due to GitHub Actions secret interpolation issues
 - E2E testing framework
 - Performance testing
 - Security scanning in CI/CD
