@@ -24,7 +24,6 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  id-token: write  # For OIDC authentication with AWS
   actions: read
   checks: write
   statuses: write
@@ -50,7 +49,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ matrix.environment == 'mgmt' && secrets.AWS_ROLE_MGMT || matrix.environment == 'dev' && secrets.AWS_ROLE_DEV || secrets.AWS_ROLE_PROD }}
+          aws-access-key-id: ${{ matrix.environment == 'mgmt' && secrets.AWS_ACCESS_KEY_ID_MGMT || matrix.environment == 'dev' && secrets.AWS_ACCESS_KEY_ID_DEV || secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ matrix.environment == 'mgmt' && secrets.AWS_SECRET_ACCESS_KEY_MGMT || matrix.environment == 'dev' && secrets.AWS_SECRET_ACCESS_KEY_DEV || secrets.AWS_SECRET_ACCESS_KEY_PROD }}
           aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
       - name: OpenTofu Init
@@ -103,7 +103,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ matrix.environment == 'mgmt' && secrets.AWS_ROLE_MGMT || secrets.AWS_ROLE_DEV }}
+          aws-access-key-id: ${{ matrix.environment == 'mgmt' && secrets.AWS_ACCESS_KEY_ID_MGMT || secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ matrix.environment == 'mgmt' && secrets.AWS_SECRET_ACCESS_KEY_MGMT || secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
       - name: OpenTofu Init
@@ -142,7 +143,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ matrix.environment == 'mgmt' && secrets.AWS_ROLE_MGMT || secrets.AWS_ROLE_PROD }}
+          aws-access-key-id: ${{ matrix.environment == 'mgmt' && secrets.AWS_ACCESS_KEY_ID_MGMT || secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ matrix.environment == 'mgmt' && secrets.AWS_SECRET_ACCESS_KEY_MGMT || secrets.AWS_SECRET_ACCESS_KEY_PROD }}
           aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
       - name: OpenTofu Init
