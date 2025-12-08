@@ -181,9 +181,9 @@ jobs:
         run: tofu init
 
       - name: Download Plan
-        uses: actions/upload-artifact@v4
+        uses: actions/download-artifact@v4
         with:
-          name: tfplan-mgmt
+          name: tfplan-mgmt-${{ github.run_id }}
           path: infra/terraform/mgmt
 
       - name: OpenTofu Apply

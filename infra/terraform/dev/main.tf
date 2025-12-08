@@ -366,6 +366,7 @@ module "github_oidc" {
 }
 
 # ECR Repositories for container images
+# These repositories store Docker images for our microservices
 locals {
   services = ["bookings", "releases", "publicity", "social", "money"]
 }
