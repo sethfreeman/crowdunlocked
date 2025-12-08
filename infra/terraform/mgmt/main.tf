@@ -21,8 +21,7 @@ provider "aws" {
 
 # NOTE: AWS Organization, accounts, domains, and certificates are created manually
 # See docs/AWS_ORGANIZATION_SETUP.md for setup instructions
-#
-# This terraform configuration imports and manages existing resources
+# This terraform configuration uses data sources to reference existing resources
 
 # Data sources for manually created resources
 data "aws_route53_zone" "prod" {
