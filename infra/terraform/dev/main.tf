@@ -127,6 +127,16 @@ resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
   role       = aws_iam_role.eks_node.name
 }
 
+# Get certificate ARN from mgmt account state
+data "terraform_remote_state" "mgmt" {
+  backend = "s3"
+  config = {
+    bucket = "crowdunlocked-terraform-state"
+    key    = "mgmt/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
 # DynamoDB Tables
 resource "aws_dynamodb_table" "bookings" {
   name           = "bookings-dev"

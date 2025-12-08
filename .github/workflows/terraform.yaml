@@ -33,6 +33,7 @@ jobs:
     strategy:
       matrix:
         environment: [mgmt, dev, prod]
+      max-parallel: 1  # Run sequentially to avoid state lock conflicts
     
     steps:
       - name: Checkout

@@ -145,6 +145,16 @@ resource "aws_dynamodb_table" "bookings" {
   }
 }
 
+# Get certificate ARN from mgmt account state
+data "terraform_remote_state" "mgmt" {
+  backend = "s3"
+  config = {
+    bucket = "crowdunlocked-terraform-state"
+    key    = "mgmt/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
 # CloudFront Distribution
 resource "aws_cloudfront_distribution" "main" {
   enabled             = true
@@ -192,15 +202,10 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = data.aws_acm_certificate.main.arn
+    acm_certificate_arn      = data.terraform_remote_state.mgmt.outputs.prod_acm_certificate_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
-}
-
-data "aws_acm_certificate" "main" {
-  domain   = var.domain_name
-  statuses = ["ISSUED"]
 }
 
 resource "aws_lb" "main" {
