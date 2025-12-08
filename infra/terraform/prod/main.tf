@@ -155,8 +155,16 @@ data "terraform_remote_state" "mgmt" {
   }
 }
 
-# CloudFront Distribution
+locals {
+  # Use try() to handle case where mgmt state doesn't exist yet
+  acm_certificate_arn = try(data.terraform_remote_state.mgmt.outputs.prod_acm_certificate_arn, null)
+  has_certificate     = local.acm_certificate_arn != null
+}
+
+# CloudFront Distribution (only created after mgmt account deploys certificates)
 resource "aws_cloudfront_distribution" "main" {
+  count = local.has_certificate ? 1 : 0
+
   enabled             = true
   is_ipv6_enabled     = true
   comment             = "Crowd Unlocked Production CDN"
@@ -202,7 +210,7 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = data.terraform_remote_state.mgmt.outputs.prod_acm_certificate_arn
+    acm_certificate_arn      = local.acm_certificate_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }

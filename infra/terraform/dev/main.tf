@@ -137,6 +137,12 @@ data "terraform_remote_state" "mgmt" {
   }
 }
 
+locals {
+  # Use try() to handle case where mgmt state doesn't exist yet
+  acm_certificate_arn = try(data.terraform_remote_state.mgmt.outputs.dev_acm_certificate_arn, null)
+  has_certificate     = local.acm_certificate_arn != null
+}
+
 # DynamoDB Tables
 resource "aws_dynamodb_table" "bookings" {
   name           = "bookings-dev"
