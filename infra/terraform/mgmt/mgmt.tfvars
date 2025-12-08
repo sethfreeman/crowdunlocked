@@ -13,7 +13,7 @@ github_org  = "sethfreeman"
 github_repo = "crowdunlocked"
 
 # AWS Account IDs (from manual account creation)
-dev_account_id  = "987470856210"
+dev_account_id  = "179151668767"
 prod_account_id = "379211248770"
 
 
