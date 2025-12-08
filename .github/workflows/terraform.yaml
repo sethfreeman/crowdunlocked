@@ -44,10 +44,14 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
+      - name: Set environment uppercase
+        id: env
+        run: echo "ENV_UPPER=$(echo ${{ matrix.environment }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_OUTPUT
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', matrix.environment)] }}
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', steps.env.outputs.ENV_UPPER)] }}
           aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
       - name: OpenTofu Init
@@ -97,10 +101,14 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
+      - name: Set environment uppercase
+        id: env
+        run: echo "ENV_UPPER=$(echo ${{ matrix.environment }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_OUTPUT
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', matrix.environment)] }}
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', steps.env.outputs.ENV_UPPER)] }}
           aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
       - name: OpenTofu Init
@@ -136,10 +144,14 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
+      - name: Set environment uppercase
+        id: env
+        run: echo "ENV_UPPER=$(echo ${{ matrix.environment }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_OUTPUT
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', matrix.environment)] }}
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', steps.env.outputs.ENV_UPPER)] }}
           aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
       - name: OpenTofu Init
