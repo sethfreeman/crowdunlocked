@@ -127,8 +127,22 @@ resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
   role       = aws_iam_role.eks_node.name
 }
 
-# Get certificate ARN from mgmt account state
+# Check if mgmt state exists by trying to read it
+# This will return null if the state doesn't exist yet
+data "external" "mgmt_state_check" {
+  program = ["sh", "-c", <<-EOT
+    if aws s3api head-object --bucket crowdunlocked-terraform-state --key mgmt/terraform.tfstate --region us-east-1 2>/dev/null; then
+      echo '{"exists":"true"}'
+    else
+      echo '{"exists":"false"}'
+    fi
+  EOT
+  ]
+}
+
+# Only read mgmt state if it exists
 data "terraform_remote_state" "mgmt" {
+  count   = data.external.mgmt_state_check.result.exists == "true" ? 1 : 0
   backend = "s3"
   config = {
     bucket = "crowdunlocked-terraform-state"
@@ -138,8 +152,7 @@ data "terraform_remote_state" "mgmt" {
 }
 
 locals {
-  # Use try() to handle case where mgmt state doesn't exist yet
-  acm_certificate_arn = try(data.terraform_remote_state.mgmt.outputs.dev_acm_certificate_arn, null)
+  acm_certificate_arn = length(data.terraform_remote_state.mgmt) > 0 ? data.terraform_remote_state.mgmt[0].outputs.dev_acm_certificate_arn : null
   has_certificate     = local.acm_certificate_arn != null
 }
 
