@@ -169,7 +169,7 @@ resource "aws_dynamodb_table" "venues" {
   global_secondary_index {
     name            = "GeohashIndex"
     hash_key        = "geohash"
-    sort_key        = "geohash_sort"
+    range_key       = "geohash_sort"
     projection_type = "ALL"
   }
 
@@ -187,7 +187,7 @@ resource "aws_dynamodb_table" "venues" {
   global_secondary_index {
     name            = "CityIndex"
     hash_key        = "city_state"
-    sort_key        = "name"
+    range_key       = "name"
     projection_type = "ALL"
   }
 
@@ -205,7 +205,7 @@ resource "aws_dynamodb_table" "venues" {
   global_secondary_index {
     name            = "VenueTypeIndex"
     hash_key        = "venue_type"
-    sort_key        = "rating_id"
+    range_key       = "rating_id"
     projection_type = "ALL"
   }
 
@@ -218,7 +218,7 @@ resource "aws_dynamodb_table" "venues" {
   global_secondary_index {
     name            = "ExternalIdIndex"
     hash_key        = "external_source_id"
-    sort_key        = "id"
+    range_key       = "id"
     projection_type = "ALL"
   }
 
