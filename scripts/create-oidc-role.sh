@@ -103,11 +103,21 @@ cat > /tmp/role-policy-$ENVIRONMENT.json <<EOF
 }
 EOF
 
-echo "Attaching policy to role..."
+echo "Attaching inline policy to role..."
 aws iam put-role-policy \
   --role-name $ROLE_NAME \
   --policy-name terraform-permissions \
   --policy-document file:///tmp/role-policy-$ENVIRONMENT.json
+
+echo "Attaching ECR policy to role..."
+aws iam attach-role-policy \
+  --role-name $ROLE_NAME \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+
+echo "Attaching Organizations read-only policy to role..."
+aws iam attach-role-policy \
+  --role-name $ROLE_NAME \
+  --policy-arn arn:aws:iam::aws:policy/AWSOrganizationsReadOnlyAccess
 
 echo ""
 echo "✅ OIDC setup complete for $ENVIRONMENT!"
