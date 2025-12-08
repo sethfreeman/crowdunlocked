@@ -24,6 +24,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  id-token: write  # Required for OIDC
   actions: read
   checks: write
   statuses: write
@@ -44,8 +45,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_MGMT }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_MGMT }}
+          role-to-assume: ${{ secrets.AWS_ROLE_MGMT }}
           aws-region: us-east-1
 
       - name: OpenTofu Init
@@ -87,8 +87,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
           aws-region: us-west-2
 
       - name: OpenTofu Init
@@ -130,8 +129,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          role-to-assume: ${{ secrets.AWS_ROLE_PROD }}
           aws-region: us-west-2
 
       - name: OpenTofu Init
@@ -174,8 +172,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_MGMT }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_MGMT }}
+          role-to-assume: ${{ secrets.AWS_ROLE_MGMT }}
           aws-region: us-east-1
 
       - name: OpenTofu Init
@@ -183,7 +180,7 @@ jobs:
         run: tofu init
 
       - name: Download Plan
-        uses: actions/download-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: tfplan-mgmt
           path: infra/terraform/mgmt
@@ -209,8 +206,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
           aws-region: us-west-2
 
       - name: OpenTofu Init
@@ -244,8 +240,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_MGMT }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_MGMT }}
+          role-to-assume: ${{ secrets.AWS_ROLE_MGMT }}
           aws-region: us-east-1
 
       - name: OpenTofu Init
@@ -279,8 +274,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          role-to-assume: ${{ secrets.AWS_ROLE_PROD }}
           aws-region: us-west-2
 
       - name: OpenTofu Init
