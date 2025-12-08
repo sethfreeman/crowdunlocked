@@ -33,3 +33,8 @@ output "prod_domain_name" {
 output "dev_domain_name" {
   value = var.dev_domain_name
 }
+
+output "github_actions_role_arn" {
+  description = "ARN of the GitHub Actions IAM role for mgmt account"
+  value       = module.github_oidc.role_arn
+}

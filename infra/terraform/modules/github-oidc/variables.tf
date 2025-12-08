@@ -1,13 +1,6 @@
-variable "aws_region" {
-  description = "AWS region"
-  type        = string
-  default     = "us-west-2"
-}
-
 variable "environment" {
-  description = "Environment name"
+  description = "Environment name (mgmt, dev, prod)"
   type        = string
-  default     = "dev"
 }
 
 variable "github_org" {

@@ -11,6 +11,10 @@ dev_domain_name  = "crowdunlockedbeta.com"
 domain_contact_type    = "COMPANY"
 domain_contact_country = "US"
 
+# GitHub repository for OIDC
+github_org  = "sethfreeman"
+github_repo = "crowdunlocked"
+
 # Sensitive values (emails, personal info) should be provided via:
 # - GitHub Secrets as TF_VAR_* environment variables in CI/CD
 # - Local environment variables for manual runs

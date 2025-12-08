@@ -169,7 +169,7 @@ resource "aws_dynamodb_table" "venues" {
   global_secondary_index {
     name            = "GeohashIndex"
     hash_key        = "geohash"
-    sort_key        = "geohash_sort"
+    range_key       = "geohash_sort"
     projection_type = "ALL"
   }
 
@@ -187,7 +187,7 @@ resource "aws_dynamodb_table" "venues" {
   global_secondary_index {
     name            = "CityIndex"
     hash_key        = "city_state"
-    sort_key        = "name"
+    range_key       = "name"
     projection_type = "ALL"
   }
 
@@ -205,7 +205,7 @@ resource "aws_dynamodb_table" "venues" {
   global_secondary_index {
     name            = "VenueTypeIndex"
     hash_key        = "venue_type"
-    sort_key        = "rating_id"
+    range_key       = "rating_id"
     projection_type = "ALL"
   }
 
@@ -218,7 +218,7 @@ resource "aws_dynamodb_table" "venues" {
   global_secondary_index {
     name            = "ExternalIdIndex"
     hash_key        = "external_source_id"
-    sort_key        = "id"
+    range_key       = "id"
     projection_type = "ALL"
   }
 
@@ -232,22 +232,8 @@ resource "aws_dynamodb_table" "venues" {
   }
 }
 
-# Check if mgmt state exists by trying to read it
-# This will return null if the state doesn't exist yet
-data "external" "mgmt_state_check" {
-  program = ["sh", "-c", <<-EOT
-    if aws s3api head-object --bucket crowdunlocked-terraform-state --key mgmt/terraform.tfstate --region us-east-1 2>/dev/null; then
-      echo '{"exists":"true"}'
-    else
-      echo '{"exists":"false"}'
-    fi
-  EOT
-  ]
-}
-
-# Only read mgmt state if it exists
+# Read mgmt state for ACM certificate ARN
 data "terraform_remote_state" "mgmt" {
-  count   = data.external.mgmt_state_check.result.exists == "true" ? 1 : 0
   backend = "s3"
   config = {
     bucket = "crowdunlocked-terraform-state"
@@ -257,7 +243,7 @@ data "terraform_remote_state" "mgmt" {
 }
 
 locals {
-  acm_certificate_arn = length(data.terraform_remote_state.mgmt) > 0 ? data.terraform_remote_state.mgmt[0].outputs.prod_acm_certificate_arn : null
+  acm_certificate_arn = data.terraform_remote_state.mgmt.outputs.prod_acm_certificate_arn
   has_certificate     = local.acm_certificate_arn != null
 }
 
@@ -341,4 +327,13 @@ resource "aws_cloudwatch_metric_alarm" "high_error_rate" {
   threshold           = 5
   alarm_description   = "High error rate for ${each.key} service"
   treat_missing_data  = "notBreaching"
+}
+
+# GitHub OIDC for CI/CD
+module "github_oidc" {
+  source = "../modules/github-oidc"
+
+  environment = "prod"
+  github_org  = var.github_org
+  github_repo = var.github_repo
 }

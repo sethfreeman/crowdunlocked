@@ -15,3 +15,8 @@ output "dynamodb_tables" {
     money         = aws_dynamodb_table.money.name
   }
 }
+
+output "github_actions_role_arn" {
+  description = "ARN of the GitHub Actions IAM role for dev account"
+  value       = module.github_oidc.role_arn
+}
