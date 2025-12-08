@@ -31,6 +31,10 @@ resource "aws_eks_cluster" "main" {
     endpoint_public_access  = true
   }
 
+  access_config {
+    authentication_mode = "API_AND_CONFIG_MAP"
+  }
+
   compute_config {
     enabled                      = true
     node_pools                   = ["general-purpose"]

@@ -31,11 +31,17 @@ resource "aws_eks_cluster" "main" {
     endpoint_public_access  = false
   }
 
-  compute_config {
-    enabled       = true
-    node_pools    = ["general-purpose"]
-    node_role_arn = aws_iam_role.eks_node.arn
+  access_config {
+    authentication_mode = "API_AND_CONFIG_MAP"
   }
+
+  compute_config {
+    enabled                      = true
+    node_pools                   = ["general-purpose"]
+    node_role_arn                = aws_iam_role.eks_node.arn
+  }
+
+  bootstrap_self_managed_addons = false
 
   kubernetes_network_config {
     elastic_load_balancing {
