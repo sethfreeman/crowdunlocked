@@ -44,16 +44,26 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
-      - name: Debug environment
-        run: |
-          echo "Environment: ${{ matrix.environment }}"
-          echo "Role ARN will be selected based on environment"
-
-      - name: Configure AWS Credentials
+      - name: Configure AWS Credentials (mgmt)
+        if: matrix.environment == 'mgmt'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ matrix.environment == 'mgmt' && secrets.AWS_ROLE_MGMT || (matrix.environment == 'dev' && secrets.AWS_ROLE_DEV || secrets.AWS_ROLE_PROD) }}
-          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
+          role-to-assume: ${{ secrets.AWS_ROLE_MGMT }}
+          aws-region: us-east-1
+
+      - name: Configure AWS Credentials (dev)
+        if: matrix.environment == 'dev'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
+          aws-region: us-west-2
+
+      - name: Configure AWS Credentials (prod)
+        if: matrix.environment == 'prod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_PROD }}
+          aws-region: us-west-2
 
       - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
@@ -102,11 +112,19 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
-      - name: Configure AWS Credentials
+      - name: Configure AWS Credentials (mgmt)
+        if: matrix.environment == 'mgmt'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ matrix.environment == 'mgmt' && secrets.AWS_ROLE_MGMT || secrets.AWS_ROLE_DEV }}
-          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
+          role-to-assume: ${{ secrets.AWS_ROLE_MGMT }}
+          aws-region: us-east-1
+
+      - name: Configure AWS Credentials (dev)
+        if: matrix.environment == 'dev'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
+          aws-region: us-west-2
 
       - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
@@ -141,11 +159,19 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
-      - name: Configure AWS Credentials
+      - name: Configure AWS Credentials (mgmt)
+        if: matrix.environment == 'mgmt'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ matrix.environment == 'mgmt' && secrets.AWS_ROLE_MGMT || secrets.AWS_ROLE_PROD }}
-          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
+          role-to-assume: ${{ secrets.AWS_ROLE_MGMT }}
+          aws-region: us-east-1
+
+      - name: Configure AWS Credentials (prod)
+        if: matrix.environment == 'prod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_PROD }}
+          aws-region: us-west-2
 
       - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
