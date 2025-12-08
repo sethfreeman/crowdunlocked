@@ -47,25 +47,11 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
-      - name: Set AWS Configuration
-        id: aws-config
-        run: |
-          if [ "${{ matrix.environment }}" = "mgmt" ]; then
-            echo "role=${{ secrets.AWS_ROLE_MGMT }}" >> $GITHUB_OUTPUT
-            echo "region=us-east-1" >> $GITHUB_OUTPUT
-          elif [ "${{ matrix.environment }}" = "dev" ]; then
-            echo "role=${{ secrets.AWS_ROLE_DEV }}" >> $GITHUB_OUTPUT
-            echo "region=us-west-2" >> $GITHUB_OUTPUT
-          elif [ "${{ matrix.environment }}" = "prod" ]; then
-            echo "role=${{ secrets.AWS_ROLE_PROD }}" >> $GITHUB_OUTPUT
-            echo "region=us-west-2" >> $GITHUB_OUTPUT
-          fi
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ steps.aws-config.outputs.role }}
-          aws-region: ${{ steps.aws-config.outputs.region }}
+          role-to-assume: ${{ matrix.environment == 'mgmt' && secrets.AWS_ROLE_MGMT || matrix.environment == 'dev' && secrets.AWS_ROLE_DEV || secrets.AWS_ROLE_PROD }}
+          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
       - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
@@ -114,22 +100,11 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
-      - name: Set AWS Configuration
-        id: aws-config
-        run: |
-          if [ "${{ matrix.environment }}" = "mgmt" ]; then
-            echo "role=${{ secrets.AWS_ROLE_MGMT }}" >> $GITHUB_OUTPUT
-            echo "region=us-east-1" >> $GITHUB_OUTPUT
-          elif [ "${{ matrix.environment }}" = "dev" ]; then
-            echo "role=${{ secrets.AWS_ROLE_DEV }}" >> $GITHUB_OUTPUT
-            echo "region=us-west-2" >> $GITHUB_OUTPUT
-          fi
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ steps.aws-config.outputs.role }}
-          aws-region: ${{ steps.aws-config.outputs.region }}
+          role-to-assume: ${{ matrix.environment == 'mgmt' && secrets.AWS_ROLE_MGMT || secrets.AWS_ROLE_DEV }}
+          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
       - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
@@ -164,22 +139,11 @@ jobs:
         with:
           tofu_version: "1.10.7"
 
-      - name: Set AWS Configuration
-        id: aws-config
-        run: |
-          if [ "${{ matrix.environment }}" = "mgmt" ]; then
-            echo "role=${{ secrets.AWS_ROLE_MGMT }}" >> $GITHUB_OUTPUT
-            echo "region=us-east-1" >> $GITHUB_OUTPUT
-          elif [ "${{ matrix.environment }}" = "prod" ]; then
-            echo "role=${{ secrets.AWS_ROLE_PROD }}" >> $GITHUB_OUTPUT
-            echo "region=us-west-2" >> $GITHUB_OUTPUT
-          fi
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ steps.aws-config.outputs.role }}
-          aws-region: ${{ steps.aws-config.outputs.region }}
+          role-to-assume: ${{ matrix.environment == 'mgmt' && secrets.AWS_ROLE_MGMT || secrets.AWS_ROLE_PROD }}
+          aws-region: ${{ matrix.environment == 'mgmt' && 'us-east-1' || 'us-west-2' }}
 
       - name: OpenTofu Init
         working-directory: infra/terraform/${{ matrix.environment }}
