@@ -68,10 +68,9 @@ jobs:
       - name: Upload Plan
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-mgmt
+          name: tfplan-mgmt-${{ github.run_id }}
           path: infra/terraform/mgmt/tfplan
           retention-days: 5
-          overwrite: true
 
   plan-dev:
     name: OpenTofu Plan (dev)
@@ -111,10 +110,9 @@ jobs:
       - name: Upload Plan
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-dev
+          name: tfplan-dev-${{ github.run_id }}
           path: infra/terraform/dev/tfplan
           retention-days: 5
-          overwrite: true
 
   plan-prod:
     name: OpenTofu Plan (prod)
@@ -154,10 +152,9 @@ jobs:
       - name: Upload Plan
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-prod
+          name: tfplan-prod-${{ github.run_id }}
           path: infra/terraform/prod/tfplan
           retention-days: 5
-          overwrite: true
 
   apply-mgmt-dev:
     name: OpenTofu Apply (mgmt)
@@ -220,7 +217,7 @@ jobs:
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-dev
+          name: tfplan-dev-${{ github.run_id }}
           path: infra/terraform/dev
 
       - name: OpenTofu Apply
@@ -254,7 +251,7 @@ jobs:
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-mgmt
+          name: tfplan-mgmt-${{ github.run_id }}
           path: infra/terraform/mgmt
 
       - name: OpenTofu Apply
@@ -288,7 +285,7 @@ jobs:
       - name: Download Plan
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-prod
+          name: tfplan-prod-${{ github.run_id }}
           path: infra/terraform/prod
 
       - name: OpenTofu Apply
