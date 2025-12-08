@@ -81,6 +81,8 @@ cat > /tmp/role-policy-$ENVIRONMENT.json <<EOF
         "s3:PutObject",
         "s3:DeleteObject",
         "s3:ListBucket",
+        "s3:PutBucketPolicy",
+        "s3:GetBucketPolicy",
         "dynamodb:GetItem",
         "dynamodb:PutItem",
         "dynamodb:DeleteItem",

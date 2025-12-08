@@ -45,14 +45,8 @@ data "aws_acm_certificate" "dev" {
   most_recent = true
 }
 
-# GitHub OIDC for CI/CD
-module "github_oidc" {
-  source = "../modules/github-oidc"
-
-  environment = "mgmt"
-  github_org  = var.github_org
-  github_repo = var.github_repo
-}
+# NOTE: GitHub OIDC provider and role created manually via scripts/create-oidc-role.sh
+# Not managed by terraform to avoid chicken-and-egg problem
 
 # Terraform state bucket (created manually during bootstrap)
 data "aws_s3_bucket" "terraform_state" {
