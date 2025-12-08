@@ -257,6 +257,13 @@ func (r *DynamoDBVenueRepository) SearchByType(ctx context.Context, venueType do
 	return venues, nil
 }
 
+// VenueNotFoundError is returned when a venue is not found
+type VenueNotFoundError struct{}
+
+func (e *VenueNotFoundError) Error() string {
+	return "venue not found"
+}
+
 // GetByExternalID retrieves a venue by external source ID
 func (r *DynamoDBVenueRepository) GetByExternalID(ctx context.Context, source domain.DataSource, externalID string) (*domain.Venue, error) {
 	externalSourceID := fmt.Sprintf("%s#%s", source, externalID)
