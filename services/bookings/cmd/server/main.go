@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/crowdunlocked/services/bookings/internal/handler"
 	"github.com/crowdunlocked/services/bookings/internal/repository"
+	"github.com/crowdunlocked/services/bookings/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -36,18 +37,43 @@ func main() {
 		dynamoClient = dynamodb.NewFromConfig(cfg)
 	}
 
-	tableName := getEnv("DYNAMODB_TABLE", "bookings")
-	repo := repository.NewBookingRepository(dynamoClient, tableName)
-	bookingHandler := handler.NewBookingHandler(repo)
+	// Initialize repositories
+	bookingsTable := getEnv("DYNAMODB_BOOKINGS_TABLE", "bookings")
+	venuesTable := getEnv("DYNAMODB_VENUES_TABLE", "venues")
+	
+	bookingRepo := repository.NewBookingRepository(dynamoClient, bookingsTable)
+	venueRepo := repository.NewDynamoDBVenueRepository(dynamoClient, venuesTable)
+
+	// Initialize services
+	venueService := service.NewVenueService(venueRepo)
+
+	// Initialize handlers
+	bookingHandler := handler.NewBookingHandler(bookingRepo)
+	venueHandler := handler.NewVenueHandler(venueService)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
 
-	r.Route("/api/v1/bookings", func(r chi.Router) {
-		r.Post("/", bookingHandler.Create)
-		r.Get("/{id}", bookingHandler.GetByID)
-		r.Post("/{id}/confirm", bookingHandler.Confirm)
+	// API routes
+	r.Route("/api/v1", func(r chi.Router) {
+		// Bookings routes
+		r.Route("/bookings", func(r chi.Router) {
+			r.Post("/", bookingHandler.Create)
+			r.Get("/{id}", bookingHandler.GetByID)
+			r.Post("/{id}/confirm", bookingHandler.Confirm)
+		})
+
+		// Venues routes
+		r.Route("/venues", func(r chi.Router) {
+			r.Get("/search", venueHandler.Search)
+			r.Post("/", venueHandler.Create)
+			r.Get("/{id}", venueHandler.GetByID)
+			r.Put("/{id}", venueHandler.Update)
+			r.Delete("/{id}", venueHandler.Delete)
+		})
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {

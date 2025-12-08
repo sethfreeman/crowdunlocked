@@ -145,6 +145,93 @@ resource "aws_dynamodb_table" "bookings" {
   }
 }
 
+resource "aws_dynamodb_table" "venues" {
+  name         = "venues-prod"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  # GSI1: Geohash index for spatial queries
+  attribute {
+    name = "geohash"
+    type = "S"
+  }
+
+  attribute {
+    name = "geohash_sort"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "GeohashIndex"
+    hash_key        = "geohash"
+    sort_key        = "geohash_sort"
+    projection_type = "ALL"
+  }
+
+  # GSI2: City index for location-based queries
+  attribute {
+    name = "city_state"
+    type = "S"
+  }
+
+  attribute {
+    name = "name"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "CityIndex"
+    hash_key        = "city_state"
+    sort_key        = "name"
+    projection_type = "ALL"
+  }
+
+  # GSI3: Venue type index for filtering
+  attribute {
+    name = "venue_type"
+    type = "S"
+  }
+
+  attribute {
+    name = "rating_id"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "VenueTypeIndex"
+    hash_key        = "venue_type"
+    sort_key        = "rating_id"
+    projection_type = "ALL"
+  }
+
+  # GSI4: External ID index for deduplication
+  attribute {
+    name = "external_source_id"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "ExternalIdIndex"
+    hash_key        = "external_source_id"
+    sort_key        = "id"
+    projection_type = "ALL"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  tags = {
+    Environment = "prod"
+    Service     = "bookings"
+  }
+}
+
 # Check if mgmt state exists by trying to read it
 # This will return null if the state doesn't exist yet
 data "external" "mgmt_state_check" {
