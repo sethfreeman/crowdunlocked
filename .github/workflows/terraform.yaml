@@ -70,6 +70,7 @@ jobs:
           name: tfplan-mgmt
           path: infra/terraform/mgmt/tfplan
           retention-days: 5
+          overwrite: true
 
   plan-dev:
     name: OpenTofu Plan (dev)
@@ -112,6 +113,7 @@ jobs:
           name: tfplan-dev
           path: infra/terraform/dev/tfplan
           retention-days: 5
+          overwrite: true
 
   plan-prod:
     name: OpenTofu Plan (prod)
@@ -154,6 +156,7 @@ jobs:
           name: tfplan-prod
           path: infra/terraform/prod/tfplan
           retention-days: 5
+          overwrite: true
 
   apply-mgmt-dev:
     name: OpenTofu Apply (mgmt)
