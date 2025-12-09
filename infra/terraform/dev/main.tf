@@ -223,6 +223,41 @@ resource "aws_iam_role_policy_attachment" "eks_container_registry_policy" {
   role       = aws_iam_role.eks_node.name
 }
 
+# Additional EC2 permissions required for EKS Auto Mode
+resource "aws_iam_role_policy" "eks_auto_mode_ec2" {
+  name = "eks-auto-mode-ec2-permissions"
+  role = aws_iam_role.eks_node.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:RunInstances",
+          "ec2:CreateFleet",
+          "ec2:CreateLaunchTemplate",
+          "ec2:CreateLaunchTemplateVersion",
+          "ec2:DescribeLaunchTemplates",
+          "ec2:DescribeLaunchTemplateVersions",
+          "ec2:DescribeInstances",
+          "ec2:DescribeInstanceTypes",
+          "ec2:DescribeImages",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeAvailabilityZones",
+          "ec2:CreateTags",
+          "ec2:TerminateInstances",
+          "iam:PassRole",
+          "iam:CreateServiceLinkedRole"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # =============================================================================
 # EKS Cluster
 # =============================================================================
