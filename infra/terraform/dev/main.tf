@@ -81,8 +81,9 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name                     = "crowdunlocked-dev-public-${count.index + 1}"
-    "kubernetes.io/role/elb" = "1"
+    Name                                        = "crowdunlocked-dev-public-${count.index + 1}"
+    "kubernetes.io/role/elb"                    = "1"
+    "kubernetes.io/cluster/crowdunlocked-dev"   = "shared"
   }
 }
 
@@ -94,8 +95,9 @@ resource "aws_subnet" "private" {
   availability_zone = data.aws_availability_zones.available.names[count.index]
 
   tags = {
-    Name                              = "crowdunlocked-dev-private-${count.index + 1}"
-    "kubernetes.io/role/internal-elb" = "1"
+    Name                                        = "crowdunlocked-dev-private-${count.index + 1}"
+    "kubernetes.io/role/internal-elb"           = "1"
+    "kubernetes.io/cluster/crowdunlocked-dev"   = "shared"
   }
 }
 
