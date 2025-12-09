@@ -19,6 +19,41 @@ inclusion: always
 - Infrastructure changes go through PR review process
 - State is managed in S3 with DynamoDB locking
 
+#### Terraform Organization Standards
+**File Structure:**
+- `main.tf` - Primary resource definitions with clear sections
+- `variables.tf` - Input variables with descriptions
+- `outputs.tf` - Output values with descriptions
+- `*.tfvars` - Environment-specific values
+
+**main.tf Section Order:**
+1. Terraform Configuration (backend, providers)
+2. Data Sources (external data lookups)
+3. Local Variables (computed values)
+4. VPC and Networking (foundation layer)
+5. IAM Roles and Policies (security layer)
+6. Compute Resources (EKS, EC2, etc.)
+7. Data Storage (DynamoDB, RDS, S3)
+8. Container Registry (ECR)
+9. Monitoring (CloudWatch, alarms)
+
+**Required Infrastructure Components:**
+- **Networking**: VPC, public/private subnets, Internet Gateway, NAT Gateways, route tables
+- **Security**: IAM roles with least privilege, security groups, NACLs
+- **High Availability**: Multi-AZ deployment for critical resources
+- **Monitoring**: CloudWatch logs, metrics, and alarms
+- **Backup**: Point-in-time recovery for databases, lifecycle policies for images
+
+**Best Practices:**
+- Use section headers with `# ===` separators for clarity
+- Group related resources together
+- Add descriptions to all variables and outputs
+- Use `for_each` instead of `count` for resource sets
+- Declare dependencies explicitly with `depends_on`
+- Tag all resources with Environment, Service, ManagedBy
+- Use data sources for cross-stack references
+- Keep resource names consistent: `{project}-{env}-{resource}`
+
 ### 3. CI/CD First
 - **Do not push features if CI/CD is broken**
 - All code must pass through automated pipelines
@@ -121,8 +156,11 @@ Following https://12factor.net principles:
 
 ### Infrastructure Documentation
 - Document manual setup steps (like AWS Organization)
-- Keep terraform variables documented
+- Keep terraform variables documented with descriptions
 - Maintain architecture diagrams
+- Document networking architecture (VPC, subnets, routing)
+- Create runbooks for common infrastructure tasks
+- Keep a changelog of infrastructure changes
 
 ## Current Status
 
@@ -146,6 +184,44 @@ Following https://12factor.net principles:
 - Security scanning in CI/CD
 - Automated dependency updates
 - Clean up old dev account (987470856210)
+
+## Infrastructure Review Checklist
+
+Before merging infrastructure changes, verify:
+
+### Networking
+- [ ] VPC has DNS support and hostnames enabled
+- [ ] Public subnets exist for load balancers and NAT gateways
+- [ ] Private subnets exist for application workloads
+- [ ] Internet Gateway attached to VPC
+- [ ] NAT Gateways in each AZ for high availability
+- [ ] Route tables properly configured (public → IGW, private → NAT)
+- [ ] Subnets tagged for Kubernetes ELB integration
+
+### Security
+- [ ] IAM roles follow least privilege principle
+- [ ] Security groups restrict access appropriately
+- [ ] No hardcoded credentials or secrets
+- [ ] Encryption enabled for data at rest
+- [ ] Encryption enabled for data in transit
+
+### High Availability
+- [ ] Resources distributed across multiple AZs
+- [ ] Auto-scaling configured where appropriate
+- [ ] Health checks configured
+- [ ] Backup and recovery procedures in place
+
+### Monitoring
+- [ ] CloudWatch logs configured
+- [ ] Alarms set for critical metrics
+- [ ] Log retention policies defined
+- [ ] Metrics exported for key resources
+
+### Cost Optimization
+- [ ] Right-sized instance types
+- [ ] Lifecycle policies for ephemeral data
+- [ ] Reserved capacity considered for stable workloads
+- [ ] Unused resources cleaned up
 
 ## When CI/CD is Broken
 
