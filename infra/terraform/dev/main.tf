@@ -245,18 +245,7 @@ resource "aws_eks_cluster" "main" {
   }
 
   # Note: Removed compute_config (Auto Mode) - using managed node groups instead
-
-  kubernetes_network_config {
-    elastic_load_balancing {
-      enabled = true
-    }
-  }
-
-  storage_config {
-    block_storage {
-      enabled = true
-    }
-  }
+  # Also removed kubernetes_network_config and storage_config (Auto Mode specific)
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,
