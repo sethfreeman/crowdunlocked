@@ -202,7 +202,7 @@ resource "aws_iam_role" "eks_node" {
       Action = "sts:AssumeRole"
       Effect = "Allow"
       Principal = {
-        Service = "eks.amazonaws.com"
+        Service = "ec2.amazonaws.com"
       }
     }]
   })
@@ -223,40 +223,7 @@ resource "aws_iam_role_policy_attachment" "eks_container_registry_policy" {
   role       = aws_iam_role.eks_node.name
 }
 
-# Additional EC2 permissions required for EKS Auto Mode
-resource "aws_iam_role_policy" "eks_auto_mode_ec2" {
-  name = "eks-auto-mode-ec2-permissions"
-  role = aws_iam_role.eks_node.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ec2:RunInstances",
-          "ec2:CreateFleet",
-          "ec2:CreateLaunchTemplate",
-          "ec2:CreateLaunchTemplateVersion",
-          "ec2:DescribeLaunchTemplates",
-          "ec2:DescribeLaunchTemplateVersions",
-          "ec2:DescribeInstances",
-          "ec2:DescribeInstanceTypes",
-          "ec2:DescribeImages",
-          "ec2:DescribeSubnets",
-          "ec2:DescribeSecurityGroups",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DescribeAvailabilityZones",
-          "ec2:CreateTags",
-          "ec2:TerminateInstances",
-          "iam:PassRole",
-          "iam:CreateServiceLinkedRole"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
+# Note: Removed Auto Mode EC2 permissions - not needed for managed node groups
 
 # =============================================================================
 # EKS Cluster
@@ -277,13 +244,7 @@ resource "aws_eks_cluster" "main" {
     authentication_mode = "API_AND_CONFIG_MAP"
   }
 
-  compute_config {
-    enabled                      = true
-    node_pools                   = ["general-purpose"]
-    node_role_arn                = aws_iam_role.eks_node.arn
-  }
-
-  bootstrap_self_managed_addons = false
+  # Note: Removed compute_config (Auto Mode) - using managed node groups instead
 
   kubernetes_network_config {
     elastic_load_balancing {
@@ -301,6 +262,40 @@ resource "aws_eks_cluster" "main" {
     aws_iam_role_policy_attachment.eks_cluster_policy,
     aws_nat_gateway.main
   ]
+}
+
+# EKS Managed Node Group
+resource "aws_eks_node_group" "main" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "crowdunlocked-dev-nodes"
+  node_role_arn   = aws_iam_role.eks_node.arn
+  subnet_ids      = aws_subnet.private[*].id
+  
+  capacity_type  = "ON_DEMAND"
+  instance_types = ["t3.medium"]
+  
+  scaling_config {
+    desired_size = 2
+    max_size     = 4
+    min_size     = 1
+  }
+  
+  update_config {
+    max_unavailable = 1
+  }
+  
+  # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
+  # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_node_policy,
+    aws_iam_role_policy_attachment.eks_cni_policy,
+    aws_iam_role_policy_attachment.eks_container_registry_policy,
+  ]
+  
+  tags = {
+    Name        = "crowdunlocked-dev-nodes"
+    Environment = "dev"
+  }
 }
 
 # =============================================================================
