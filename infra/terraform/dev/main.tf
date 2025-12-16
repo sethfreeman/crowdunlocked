@@ -287,6 +287,78 @@ resource "aws_eks_node_group" "main" {
   }
 }
 
+# AWS Load Balancer Controller IAM Role
+resource "aws_iam_role" "alb_controller" {
+  name = "crowdunlocked-dev-alb-controller"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Federated = "arn:aws:iam::179151668767:oidc-provider/oidc.eks.us-west-2.amazonaws.com/id/${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://oidc.eks.us-west-2.amazonaws.com/id/", "")}"
+      }
+      Condition = {
+        StringEquals = {
+          "${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:kube-system:aws-load-balancer-controller"
+          "${replace(aws_eks_cluster.main.identity[0].oidc[0].issuer, "https://", "")}:aud" = "sts.amazonaws.com"
+        }
+      }
+    }]
+  })
+
+  tags = {
+    Name        = "crowdunlocked-dev-alb-controller"
+    Environment = "dev"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "alb_controller_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
+  role       = aws_iam_role.alb_controller.name
+}
+
+# SSL Certificate for crowdunlockedbeta.com
+resource "aws_acm_certificate" "crowdunlockedbeta" {
+  domain_name               = "crowdunlockedbeta.com"
+  subject_alternative_names = ["*.crowdunlockedbeta.com"]
+  validation_method         = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Name        = "crowdunlockedbeta.com"
+    Environment = "dev"
+  }
+}
+
+# Certificate validation
+resource "aws_acm_certificate_validation" "crowdunlockedbeta" {
+  certificate_arn         = aws_acm_certificate.crowdunlockedbeta.arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+}
+
+# DNS validation records
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.crowdunlockedbeta.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = "Z06872681RQI8TW563Y4G"  # Dev hosted zone ID
+}
+
 # =============================================================================
 # DynamoDB Tables
 # =============================================================================
