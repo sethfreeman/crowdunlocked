@@ -319,32 +319,6 @@ resource "aws_iam_role_policy_attachment" "alb_controller_policy" {
   role       = aws_iam_role.alb_controller.name
 }
 
-# Route53 permissions for GitHub Actions role (for certificate validation)
-resource "aws_iam_role_policy" "github_actions_route53" {
-  name = "route53-certificate-validation"
-  role = "github-actions-dev"  # This role should already exist
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "route53:GetHostedZone",
-          "route53:ListHostedZones",
-          "route53:ChangeResourceRecordSets",
-          "route53:GetChange",
-          "route53:ListResourceRecordSets"
-        ]
-        Resource = [
-          "arn:aws:route53:::hostedzone/Z06872681RQI8TW563Y4G",
-          "arn:aws:route53:::change/*"
-        ]
-      }
-    ]
-  })
-}
-
 # SSL Certificate for crowdunlockedbeta.com
 resource "aws_acm_certificate" "crowdunlockedbeta" {
   domain_name               = "crowdunlockedbeta.com"
@@ -367,7 +341,7 @@ resource "aws_acm_certificate_validation" "crowdunlockedbeta" {
   validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
 }
 
-# DNS validation records (hosted zone is in mgmt account)
+# DNS validation records
 resource "aws_route53_record" "cert_validation" {
   for_each = {
     for dvo in aws_acm_certificate.crowdunlockedbeta.domain_validation_options : dvo.domain_name => {
@@ -382,7 +356,7 @@ resource "aws_route53_record" "cert_validation" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = "Z06872681RQI8TW563Y4G"  # Hosted zone in mgmt account
+  zone_id         = "Z06872681RQI8TW563Y4G"  # Dev hosted zone ID
 }
 
 # =============================================================================
