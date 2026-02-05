@@ -40,6 +40,8 @@ data "terraform_remote_state" "mgmt" {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
 # =============================================================================
 # Local Variables
 # =============================================================================
@@ -48,6 +50,7 @@ locals {
   services            = ["bookings", "releases", "publicity", "social", "money"]
   acm_certificate_arn = data.terraform_remote_state.mgmt.outputs.dev_acm_certificate_arn
   has_certificate     = local.acm_certificate_arn != null
+  aws_account_id      = data.aws_caller_identity.current.account_id
 }
 
 # =============================================================================
@@ -658,4 +661,27 @@ resource "aws_cloudwatch_metric_alarm" "high_error_rate" {
     Environment = "dev"
     Service     = each.key
   }
+}
+
+# =============================================================================
+# Vercel OIDC Integration
+# =============================================================================
+
+module "vercel_oidc" {
+  source = "../modules/vercel-oidc"
+
+  project_name    = "crowdunlocked"
+  environment     = "dev"
+  aws_region      = var.aws_region
+  aws_account_id  = local.aws_account_id
+
+  # You'll need to update these after creating your Vercel project
+  # Format: "team_<team_id>:project_<project_id>:environment_<environment>"
+  vercel_project_ids = [
+    # Add your actual Vercel project IDs here after deployment
+    # Example: "team_abc123:project_xyz789:environment_production"
+  ]
+
+  venues_table_arn   = aws_dynamodb_table.venues.arn
+  bookings_table_arn = aws_dynamodb_table.bookings.arn
 }
