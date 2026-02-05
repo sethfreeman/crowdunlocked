@@ -63,3 +63,21 @@ output "ecr_repository_urls" {
     { web = aws_ecr_repository.web.repository_url }
   )
 }
+# =============================================================================
+# Vercel OIDC Outputs
+# =============================================================================
+
+output "vercel_role_arn" {
+  description = "ARN of the IAM role for Vercel OIDC"
+  value       = module.vercel_oidc.vercel_role_arn
+}
+
+output "vercel_role_name" {
+  description = "Name of the IAM role for Vercel OIDC"
+  value       = module.vercel_oidc.vercel_role_name
+}
+
+output "vercel_oidc_provider_arn" {
+  description = "ARN of the Vercel OIDC provider"
+  value       = module.vercel_oidc.oidc_provider_arn
+}

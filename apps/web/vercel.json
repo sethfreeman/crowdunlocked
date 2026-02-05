@@ -1,0 +1,18 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "AWS_REGION": "us-east-1",
+    "DYNAMODB_VENUES_TABLE": "venues-dev",
+    "DYNAMODB_BOOKINGS_TABLE": "bookings-dev"
+  },
+  "functions": {
+    "pages/api/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  }
+}
