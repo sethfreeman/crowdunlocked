@@ -14,6 +14,17 @@ import { awsCredentialsProvider } from '@vercel/oidc-aws-credentials-provider';
  */
 const region = process.env.AWS_REGION || 'us-west-2';
 const roleArn = process.env.AWS_ROLE_ARN;
+const onVercel = !!process.env.VERCEL;
+
+// On Vercel we MUST use OIDC. If the role ARN is missing there, fail loudly
+// instead of silently falling through to the default chain (which has no
+// credentials in the Vercel runtime and yields a confusing 500).
+if (onVercel && !roleArn) {
+  console.error(
+    'AWS_ROLE_ARN is not set in this Vercel environment. DynamoDB calls will ' +
+      'fail. Set AWS_ROLE_ARN (and AWS_REGION) for the Production/Preview scopes.'
+  );
+}
 
 const client = new DynamoDBClient({
   region,
