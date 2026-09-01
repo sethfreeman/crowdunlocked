@@ -1,11 +1,11 @@
 variable "project_name" {
-  description = "Name of the project"
+  description = "Name of the AWS-side project (used for resource naming)"
   type        = string
   default     = "crowdunlocked"
 }
 
 variable "environment" {
-  description = "Environment name (dev, prod)"
+  description = "Environment name (dev, prod) - used for AWS resource naming"
   type        = string
 }
 
@@ -20,11 +20,31 @@ variable "aws_account_id" {
   type        = string
 }
 
-variable "vercel_project_ids" {
-  description = "List of Vercel project identifiers for OIDC subject conditions"
+# ---------------------------------------------------------------------------
+# Vercel OIDC identity
+#
+# Vercel OIDC tokens carry these claims (team issuer mode):
+#   iss = https://oidc.vercel.com/<vercel_team_slug>
+#   aud = https://vercel.com/<vercel_team_slug>
+#   sub = owner:<vercel_team_slug>:project:<vercel_project_name>:environment:<env>
+#
+# NOTE: sub uses the team SLUG and project NAME (not the team_/prj_ IDs).
+# ---------------------------------------------------------------------------
+
+variable "vercel_team_slug" {
+  description = "Vercel team slug (e.g. seth-freemans-projects). Appears in the dashboard URL and in the OIDC iss/aud/sub claims."
+  type        = string
+}
+
+variable "vercel_project_name" {
+  description = "Vercel project name (e.g. crowdunlocked). Used in the OIDC sub claim."
+  type        = string
+}
+
+variable "vercel_environments" {
+  description = "Vercel deployment environments allowed to assume the role."
   type        = list(string)
-  # Format: "team_<team_id>:project_<project_id>:environment_<environment>"
-  # Example: ["team_abc123:project_xyz789:environment_production"]
+  default     = ["production", "preview"]
 }
 
 variable "venues_table_arn" {

@@ -245,11 +245,10 @@ module "vercel_oidc" {
   aws_region     = var.aws_region
   aws_account_id = local.aws_account_id
 
-  # Format: "team_<team_id>:project_<project_id>:environment_<environment>"
-  vercel_project_ids = [
-    # Add your actual Vercel project IDs here after deployment
-    # Example: "team_abc123:project_xyz789:environment_production"
-  ]
+  # Vercel identity (team issuer mode). sub uses the team slug + project name.
+  vercel_team_slug    = "seth-freemans-projects"
+  vercel_project_name = "crowdunlocked"
+  vercel_environments = ["production", "preview"]
 
   venues_table_arn   = aws_dynamodb_table.venues.arn
   bookings_table_arn = aws_dynamodb_table.bookings.arn

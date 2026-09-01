@@ -1,11 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { docClient } from '../../../../lib/dynamodb';
 import { encodeGeohash } from '../../../../lib/utils/geohash';
 import type { Venue, UpdateVenueRequest } from '../../../../lib/types/venue';
-
-const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
-const docClient = DynamoDBDocumentClient.from(client);
 
 const VENUES_TABLE = process.env.DYNAMODB_VENUES_TABLE || 'venues-dev';
 const VALID_VENUE_TYPES = ['club', 'bar', 'restaurant', 'theater', 'arena', 'stadium', 'conference_center', 'other'];
