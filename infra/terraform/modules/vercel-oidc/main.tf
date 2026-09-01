@@ -1,16 +1,34 @@
 # ===================================================================
 # Vercel OIDC Provider Configuration
+#
+# Team issuer mode: the issuer is scoped to the team slug.
+#   iss = https://oidc.vercel.com/<team_slug>
+# The OIDC provider's condition keys are prefixed with the issuer host+path
+# WITHOUT the scheme, i.e. "oidc.vercel.com/<team_slug>:aud" / ":sub".
 # ===================================================================
 
-# Create OIDC provider for Vercel
+locals {
+  vercel_issuer_host = "oidc.vercel.com/${var.vercel_team_slug}"
+  vercel_issuer_url  = "https://${local.vercel_issuer_host}"
+  vercel_audience    = "https://vercel.com/${var.vercel_team_slug}"
+
+  # sub = owner:<team_slug>:project:<project_name>:environment:<env>
+  vercel_subjects = [
+    for env in var.vercel_environments :
+    "owner:${var.vercel_team_slug}:project:${var.vercel_project_name}:environment:${env}"
+  ]
+}
+
+# Create OIDC provider for Vercel (team issuer mode)
 resource "aws_iam_openid_connect_provider" "vercel" {
-  url = "https://oidc.vercel.com"
+  url = local.vercel_issuer_url
 
   client_id_list = [
-    "https://vercel.com",
+    local.vercel_audience,
   ]
 
-  # Vercel's OIDC thumbprint
+  # Vercel's OIDC thumbprint. AWS ignores this for recognized shared providers,
+  # but the argument is still required.
   thumbprint_list = [
     "6938fd4d98bab03faadb97b34396831e3780aea1",
   ]
@@ -41,15 +59,14 @@ data "aws_iam_policy_document" "vercel_assume_role" {
 
     condition {
       test     = "StringEquals"
-      variable = "oidc.vercel.com:aud"
-      values   = ["https://vercel.com"]
+      variable = "${local.vercel_issuer_host}:aud"
+      values   = [local.vercel_audience]
     }
 
     condition {
-      test     = "StringLike"
-      variable = "oidc.vercel.com:sub"
-      # Format: team_<team_id>:project_<project_id>:environment_<environment>
-      values = var.vercel_project_ids
+      test     = "StringEquals"
+      variable = "${local.vercel_issuer_host}:sub"
+      values   = local.vercel_subjects
     }
   }
 }

@@ -1,5 +1,9 @@
 name: CI
 
+# Web app CI. Deployment is handled by Vercel's GitHub integration, not here.
+# Infrastructure (DynamoDB + Vercel OIDC) lives in infra/terraform/dev and is
+# validated on PRs that touch it via the plan-only job below.
+
 on:
   push:
     branches: [develop, main]
@@ -8,101 +12,74 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # Required for OIDC
+  id-token: write # Required for OIDC (terraform plan)
+  pull-requests: write
 
 jobs:
-  test-services:
+  web:
+    name: Web App (lint, test, type-check, build)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [bookings, releases, publicity, social, money]
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-      
-      - name: Test ${{ matrix.service }}
-        working-directory: services/${{ matrix.service }}
-        run: |
-          go mod download
-          go test -v -cover ./...
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  build-images:
-    needs: test-services
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    strategy:
-      matrix:
-        service: [bookings, releases, publicity, social, money]
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ROLE_PROD || secrets.AWS_ROLE_DEV }}
-          aws-region: us-west-2
-      
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-      
-      - name: Build and push ${{ matrix.service }}
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:$IMAGE_TAG \
-            -f services/${{ matrix.service }}/Dockerfile .
-          docker push $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:$IMAGE_TAG
-          
-          if [ "${{ github.ref }}" == "refs/heads/develop" ]; then
-            docker tag $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:$IMAGE_TAG \
-              $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:dev-latest
-            docker push $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:dev-latest
-          fi
-          
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            docker tag $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:$IMAGE_TAG \
-              $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:prod-latest
-            docker push $ECR_REGISTRY/crowdunlocked/${{ matrix.service }}:prod-latest
-          fi
-
-  build-web:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
-      - name: Build web app
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install Dependencies
         working-directory: apps/web
-        run: |
-          npm ci
-          npm run build
-      
-      - name: Configure AWS credentials
+        run: npm ci
+
+      - name: Lint
+        working-directory: apps/web
+        run: npm run lint
+
+      - name: Test
+        working-directory: apps/web
+        run: npm test -- --passWithNoTests
+
+      - name: Type Check
+        working-directory: apps/web
+        run: npm run type-check
+
+      - name: Build
+        working-directory: apps/web
+        run: npm run build
+
+  terraform-plan:
+    name: OpenTofu Plan (dev, plan-only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          # Must be >= the version that wrote the state (1.12.x). OpenTofu
+          # refuses to read state written by a newer version.
+          tofu_version: "1.12.6"
+
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ROLE_PROD || secrets.AWS_ROLE_DEV }}
+          role-to-assume: ${{ secrets.AWS_ROLE_DEV }}
           aws-region: us-west-2
-      
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-      
-      - name: Build and push web image
-        working-directory: apps/web
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/crowdunlocked/web:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/crowdunlocked/web:$IMAGE_TAG
+
+      - name: OpenTofu Init
+        working-directory: infra/terraform/dev
+        run: tofu init
+
+      - name: OpenTofu Validate
+        working-directory: infra/terraform/dev
+        run: tofu validate
+
+      - name: OpenTofu Plan
+        working-directory: infra/terraform/dev
+        # plan-only, read-only: don't take the state lock
+        run: tofu plan -var-file=dev.tfvars -lock=false

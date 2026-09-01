@@ -13,17 +13,3 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
-
-# =============================================================================
-# GitHub Integration
-# =============================================================================
-
-variable "github_org" {
-  description = "GitHub organization name for CI/CD integration"
-  type        = string
-}
-
-variable "github_repo" {
-  description = "GitHub repository name for CI/CD integration"
-  type        = string
-}

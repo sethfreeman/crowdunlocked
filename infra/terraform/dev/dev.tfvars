@@ -3,10 +3,3 @@
 
 aws_region  = "us-west-2"
 environment = "dev"
-
-# Development domain name
-domain_name = "crowdunlockedbeta.com"
-
-# GitHub repository for OIDC
-github_org  = "sethfreeman"
-github_repo = "crowdunlocked"
