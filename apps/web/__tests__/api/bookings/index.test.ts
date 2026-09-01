@@ -2,30 +2,33 @@ import { createMocks } from 'node-mocks-http';
 import handler from '../../../pages/api/v1/bookings/index';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-// Mock AWS SDK
-jest.mock('@aws-sdk/lib-dynamodb', () => ({
-  DynamoDBDocumentClient: {
-    from: jest.fn(() => ({
-      send: jest.fn(),
-    })),
-  },
-  PutCommand: jest.fn(),
-  ScanCommand: jest.fn(),
-  GetCommand: jest.fn(),
-}));
+// Mock AWS SDK.
+// The handler module captures docClient (and its `send`) at import time, which
+// happens before test setup runs. So the mock owns a single persistent send fn
+// created inside the factory, and the test retrieves it via __getMockSend().
+jest.mock('@aws-sdk/lib-dynamodb', () => {
+  const send = jest.fn();
+  return {
+    DynamoDBDocumentClient: {
+      from: jest.fn(() => ({ send })),
+    },
+    PutCommand: jest.fn(),
+    ScanCommand: jest.fn(),
+    GetCommand: jest.fn(),
+    __getMockSend: () => send,
+  };
+});
 
 jest.mock('@aws-sdk/client-dynamodb', () => ({
   DynamoDBClient: jest.fn(() => ({})),
 }));
 
-describe('/api/v1/bookings', () => {
-  let mockSend: jest.Mock;
+const { __getMockSend } = require('@aws-sdk/lib-dynamodb');
+const mockSend: jest.Mock = __getMockSend();
 
+describe('/api/v1/bookings', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    const { DynamoDBDocumentClient } = require('@aws-sdk/lib-dynamodb');
-    mockSend = jest.fn();
-    DynamoDBDocumentClient.from.mockReturnValue({ send: mockSend });
+    mockSend.mockReset();
   });
 
   describe('POST /api/v1/bookings', () => {
