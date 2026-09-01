@@ -2,177 +2,89 @@
 
 ## Overview
 
-Enterprise-grade monorepo for Crowd Unlocked artist management platform with Go microservices, Next.js web app, Flutter mobile app, and complete AWS infrastructure.
+Monorepo for the Crowd Unlocked artist management platform. The web app and its
+API are a single Next.js project deployed to Vercel; data lives in DynamoDB. A
+Flutter mobile app shares the same backend.
+
+> Historical note: this repo previously contained Go microservices, Kubernetes
+> manifests (`k8s/`), Flux GitOps config (`flux/`), and an EKS deployment. Those
+> were removed to reduce cost and operational overhead. The application logic now
+> lives entirely in the Next.js API routes. Prior structure is in git history.
 
 ## Directory Structure
 
 ```
 crowdunlocked/
-├── services/                    # Go microservices
-│   ├── bookings/               # Bookings service (TDD-ready)
-│   │   ├── cmd/server/         # Main entry point
-│   │   ├── internal/
-│   │   │   ├── domain/         # Business logic + tests
-│   │   │   ├── repository/     # DynamoDB repository
-│   │   │   └── handler/        # HTTP handlers
-│   │   ├── Dockerfile
-│   │   └── go.mod
-│   ├── releases/               # Music releases service
-│   ├── publicity/              # PR and publicity service
-│   ├── social/                 # Social media service
-│   └── money/                  # Revenue management service
-│
 ├── apps/
-│   ├── web/                    # Next.js web application
-│   │   ├── app/                # App router pages
-│   │   ├── Dockerfile
-│   │   ├── package.json
-│   │   └── next.config.js
-│   └── mobile/                 # Flutter mobile app
-│       ├── lib/main.dart
-│       ├── android/
-│       ├── ios/
-│       └── pubspec.yaml
+│   ├── web/                    # Next.js web app + API
+│   │   ├── app/                # App Router pages (UI)
+│   │   ├── pages/api/          # API routes
+│   │   │   ├── health.ts
+│   │   │   └── v1/
+│   │   │       ├── venues/     # index, [id], search
+│   │   │       └── bookings/   # index
+│   │   ├── lib/                # types, utils (geohash)
+│   │   ├── __tests__/          # Jest API route tests
+│   │   └── package.json
+│   └── mobile/                 # Flutter app (iOS & Android)
 │
 ├── infra/
 │   └── terraform/
-│       ├── management/         # AWS Organizations, SSO, Route 53, ACM
-│       ├── dev/                # Dev environment (EKS, DynamoDB)
-│       └── prod/               # Prod environment (EKS, CloudFront, DynamoDB)
+│       ├── mgmt/               # AWS Organization, domains, ACM certs
+│       ├── dev/                # DynamoDB tables + Vercel OIDC role
+│       └── modules/
+│           ├── vercel-oidc/    # OIDC provider + IAM role for Vercel
+│           └── github-oidc/    # OIDC role for GitHub Actions
 │
-├── k8s/                        # Kubernetes manifests
-│   ├── base/                   # Base configurations
-│   │   ├── bookings/
-│   │   ├── releases/
-│   │   └── xray/              # AWS X-Ray daemon
-│   └── overlays/
-│       ├── dev/               # Dev-specific configs
-│       └── prod/              # Prod-specific configs
-│
-├── flux/                       # Flux CD GitOps
-│   └── clusters/
-│       ├── dev/               # Watches 'develop' branch
-│       └── prod/              # Watches 'main' branch
-│
-├── docs/
-│   ├── ARCHITECTURE.md        # System architecture
-│   └── SETUP.md              # Setup instructions
-│
-├── scripts/
-│   ├── bootstrap.sh          # Initial setup script
-│   └── create-dynamodb-tables.sh
-│
-├── .github/workflows/
-│   └── ci.yaml               # CI/CD pipeline
-│
-├── go.work                    # Go workspace
-├── Makefile                   # Build automation
-├── docker-compose.yml         # Local development
-└── README.md
+├── docs/                       # Architecture and setup guides
+├── scripts/                    # Helper scripts
+└── .github/workflows/ci.yaml   # Lint, test, type-check, build, tf plan
 ```
 
 ## Technology Stack
 
-### Backend Services
-- **Language**: Go 1.22
-- **Framework**: Chi router
-- **Database**: DynamoDB (all services)
-- **Tracing**: AWS X-Ray
-- **Testing**: TDD with testify
+### Web + API
+- **Framework**: Next.js 14 (React, TypeScript)
+- **API**: Next.js API routes (`pages/api/v1/**`)
+- **AWS SDK**: `@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb`
+- **Testing**: Jest + node-mocks-http
+- **Hosting**: Vercel (serverless functions for API routes)
 
-### Frontend
-- **Web**: Next.js 14 (React, TypeScript, Tailwind CSS)
-- **Mobile**: Flutter 3.2+ (iOS & Android)
+### Mobile
+- **Flutter** 3.2+ (iOS & Android)
+
+### Data
+- **DynamoDB** (pay-per-request), region `us-west-2`
+  - `venues-dev` with GSIs: GeohashIndex, CityIndex, VenueTypeIndex, ExternalIdIndex
+  - `bookings-dev` (streams enabled)
+  - `releases-dev`, `publicity-dev`, `social-dev`, `money-dev` (currently unused)
 
 ### Infrastructure
-- **Cloud**: AWS (multi-account setup)
-- **IaC**: Terraform
-- **Container Orchestration**: EKS Auto Mode (Fargate)
-- **GitOps**: Flux CD
-- **CDN**: CloudFront
-- **DNS**: Route 53
-- **Certificates**: ACM
-- **Monitoring**: CloudWatch + X-Ray
+- **IaC**: OpenTofu (`infra/terraform`)
+- **State**: S3 bucket `crowdunlocked-terraform-state` + DynamoDB lock (us-east-1)
+- **Auth**: Vercel → AWS via OIDC; GitHub Actions → AWS via OIDC (no long-lived keys)
 
-### AWS Account Structure
-1. **Management**: Organizations, SSO, shared services
-2. **Dev**: Development environment
-3. **Prod**: Production environment
+## Data Model Highlights
 
-## Key Features
+The `venues` table drives search via secondary indexes:
+- **GeohashIndex** — spatial/location search
+- **CityIndex** — city/state lookups
+- **VenueTypeIndex** — filter by venue type
+- **ExternalIdIndex** — dedupe against external sources
 
-### Microservices Architecture
-- 5 independent Go services
-- Each with dedicated DynamoDB table
-- Containerized with Docker
-- Deployed to EKS Fargate
+The venues API route writes the geohash, `city_state`, and GSI key attributes on
+create/update so these queries work.
 
-### GitOps Workflow
-- `develop` branch → Auto-deploy to dev cluster
-- `main` branch → Auto-deploy to prod cluster
-- Flux reconciles every 10 minutes
+## Deployment
 
-### Observability
-- Distributed tracing with X-Ray
-- Centralized logging with CloudWatch
-- Automated alarms for error rates
-
-### Security
-- IAM roles for service accounts (IRSA)
-- Private EKS subnets
-- TLS everywhere
-- Multi-account isolation
-- SSO for human access
-
-## Quick Start
-
-```bash
-# 1. Bootstrap project
-./scripts/bootstrap.sh
-
-# 2. Run tests
-make test
-
-# 3. Local development
-docker-compose up
-
-# 4. Deploy infrastructure
-cd infra/terraform/mgmt
-terraform init && terraform apply
-
-# 5. Setup GitOps
-flux bootstrap github --owner=crowdunlocked --repository=crowdunlocked
-```
+- **Web app**: Vercel, via its GitHub integration. See `docs/VERCEL_DEPLOYMENT.md`.
+- **Infrastructure**: OpenTofu applied from `infra/terraform/dev`.
 
 ## Development Workflow
 
-1. **Feature Development**: Work on `develop` branch
-2. **Testing**: TDD - write tests first, then implementation
-3. **Local Testing**: Use docker-compose for integration tests
-4. **Push**: Commit triggers CI pipeline
-5. **Auto-Deploy**: Flux deploys to dev cluster
-6. **Production**: Merge to `main` for prod deployment
+1. Feature branch from `develop`.
+2. Make changes and update tests (`apps/web/__tests__`).
+3. Run `npm test`, `npm run lint`, `npm run type-check`, `npm run build`.
+4. PR to `develop`; CI validates. Vercel deploys on merge.
 
-## CI/CD Pipeline
-
-- **Test**: Run Go tests for all services
-- **Build**: Build Docker images
-- **Push**: Push to Amazon ECR
-- **Deploy**: Flux auto-deploys from Git
-
-## Monitoring & Alerts
-
-- CloudWatch Logs: `/aws/eks/crowdunlocked-{env}/{service}`
-- X-Ray Traces: Distributed tracing across services
-- CloudWatch Alarms: High error rate detection
-- Metrics: Request counts, latencies, errors
-
-## Next Steps
-
-1. Configure AWS credentials
-2. Set domain name in Terraform variables
-3. Run infrastructure deployment
-4. Bootstrap Flux on clusters
-5. Push code to trigger deployments
-
-See `docs/SETUP.md` for detailed instructions.
+See `docs/VERCEL_DEPLOYMENT.md` for deployment and `docs/ARCHITECTURE.md` for design.

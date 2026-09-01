@@ -262,24 +262,20 @@ DEV_ACM_CERTIFICATE_ARN=arn:aws:acm:...
 
 ## What's Next?
 
-Now that the organization and accounts are set up, terraform will manage:
-- ✅ EKS clusters (dev and prod)
+Now that the organization and accounts are set up, terraform (dev) manages:
 - ✅ DynamoDB tables
-- ✅ VPCs and networking
-- ✅ IAM roles and policies
-- ✅ CloudFront distributions (using the certificates you created)
+- ✅ Vercel OIDC provider + IAM role (keyless access from Vercel functions)
+
+The web app itself is deployed to Vercel (see `docs/VERCEL_DEPLOYMENT.md`), not to
+AWS compute. There are no EKS clusters, VPCs, or CloudFront distributions in the
+current architecture.
 
 Run terraform:
 ```bash
 cd infra/terraform/dev
-terraform init
-terraform plan
-terraform apply
-
-cd ../prod
-terraform init
-terraform plan
-terraform apply
+AWS_PROFILE=crowdunlocked-dev tofu init
+AWS_PROFILE=crowdunlocked-dev tofu plan -var-file=dev.tfvars
+AWS_PROFILE=crowdunlocked-dev tofu apply -var-file=dev.tfvars
 ```
 
 ---

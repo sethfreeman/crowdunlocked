@@ -1,210 +1,119 @@
 # Test-Driven Development Guide
 
-This project follows TDD principles. All new features and changes should be developed test-first.
+This project follows TDD. New features and changes should be developed test-first.
 
-## Testing Philosophy
+## Philosophy
 
-- **Write tests first** - Define behavior before implementation
-- **Red, Green, Refactor** - Fail, pass, improve
-- **Fast feedback** - Tests should run quickly locally
-- **Comprehensive coverage** - Unit, integration, and e2e tests
+- **Write tests first** — define behavior before implementation
+- **Red, Green, Refactor** — fail, pass, improve
+- **Fast feedback** — tests run in well under a second locally
+- **Cover behavior** — happy path plus validation and error cases
 
-## Test Structure
+## Where tests live
 
-### Go Services (Microservices)
-
-Each service follows this structure:
-```
-services/[service-name]/
-├── cmd/
-│   └── server/
-│       └── main.go
-├── internal/
-│   ├── domain/
-│   │   ├── booking.go
-│   │   └── booking_test.go          # Unit tests
-│   ├── handler/
-│   │   ├── handler.go
-│   │   └── handler_test.go          # Handler tests
-│   └── repository/
-│       ├── dynamodb.go
-│       └── dynamodb_test.go         # Repository tests
-└── tests/
-    ├── integration/                  # Integration tests
-    │   └── booking_flow_test.go
-    └── e2e/                          # End-to-end tests
-        └── api_test.go
-```
-
-### Web App (Next.js)
+The app is a Next.js project in `apps/web`. Tests use **Jest** with
+**node-mocks-http** for API route testing.
 
 ```
 apps/web/
-├── app/
-│   └── [feature]/
-│       ├── page.tsx
-│       └── page.test.tsx            # Component tests
-├── lib/
-│   ├── utils.ts
-│   └── utils.test.ts                # Unit tests
-└── e2e/
-    └── booking-flow.spec.ts         # Playwright e2e tests
+├── pages/api/
+│   ├── health.ts
+│   └── v1/
+│       ├── venues/        # index.ts, [id].ts, search.ts
+│       └── bookings/      # index.ts
+├── lib/                   # types, utils (e.g. geohash)
+└── __tests__/
+    └── api/
+        ├── venues/        # index.test.ts, [id].test.ts, search.test.ts
+        └── bookings/      # index.test.ts
 ```
 
-### Mobile App (Flutter)
-
-```
-apps/mobile/
-├── lib/
-│   ├── features/
-│   │   └── bookings/
-│   │       ├── booking_screen.dart
-│   │       └── booking_screen_test.dart
-│   └── services/
-│       ├── api_service.dart
-│       └── api_service_test.dart
-└── integration_test/
-    └── app_test.dart
-```
-
-## Running Tests Locally
-
-### Go Services
-
-```bash
-# Run all tests in a service
-cd services/bookings
-go test ./...
-
-# Run with coverage
-go test -cover ./...
-
-# Run with verbose output
-go test -v ./...
-
-# Run specific test
-go test -run TestCreateBooking ./internal/handler
-
-# Run integration tests (requires local DynamoDB)
-docker-compose up -d dynamodb-local
-go test -tags=integration ./tests/integration/...
-
-# Watch mode (using entr or similar)
-find . -name "*.go" | entr -c go test ./...
-```
-
-### Web App (Next.js)
+## Running tests
 
 ```bash
 cd apps/web
 
-# Run all tests
-npm test
-
-# Watch mode
-npm test -- --watch
-
-# Coverage
-npm test -- --coverage
-
-# E2E tests
-npm run test:e2e
-
-# Type checking
-npm run type-check
+npm test                 # run all tests
+npm test -- --watch      # watch mode
+npm test -- --coverage   # coverage report
+npm run type-check       # tsc --noEmit
+npm run lint             # next lint
 ```
 
-### Mobile App (Flutter)
+## Mocking DynamoDB in API route tests
 
-```bash
-cd apps/mobile
+The API route handlers create the DynamoDB document client at module load time:
 
-# Run all tests
-flutter test
-
-# Watch mode
-flutter test --watch
-
-# Coverage
-flutter test --coverage
-
-# Integration tests
-flutter test integration_test/
+```ts
+const client = new DynamoDBClient({ region: process.env.AWS_REGION });
+const docClient = DynamoDBDocumentClient.from(client);
 ```
 
-### Infrastructure (OpenTofu)
+Because `docClient` (and its `send`) is captured at import time, the mock must
+own a single persistent `send` function that `from()` always returns. The test
+retrieves that function via a helper exported from the mock factory:
 
-```bash
-cd infra/terraform/mgmt
+```ts
+jest.mock('@aws-sdk/lib-dynamodb', () => {
+  const send = jest.fn();
+  return {
+    DynamoDBDocumentClient: { from: jest.fn(() => ({ send })) },
+    QueryCommand: jest.fn(),
+    // ...other commands the route uses...
+    __getMockSend: () => send,
+  };
+});
 
-# Validate
-tofu validate
+jest.mock('@aws-sdk/client-dynamodb', () => ({
+  DynamoDBClient: jest.fn(() => ({})),
+}));
 
-# Format check
-tofu fmt -check
+const { __getMockSend } = require('@aws-sdk/lib-dynamodb');
+const mockSend: jest.Mock = __getMockSend();
 
-# Plan (dry run)
-tofu plan -var-file=management.tfvars
-
-# Use local tfvars for testing
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with test values
-tofu plan -var-file=management.tfvars
+beforeEach(() => mockSend.mockReset());
 ```
 
-## TDD Workflow
+Then drive behavior per-test with `mockSend.mockResolvedValue({ Items: [...] })`.
 
-### 1. Feature Branch
+## TDD workflow
+
+### 1. Feature branch
 
 ```bash
-# Create feature branch from develop
 git checkout develop
 git pull origin develop
 git checkout -b feature/booking-cancellation
 ```
 
-### 2. Write Failing Test
+### 2. Write a failing test
 
-```go
-// services/bookings/internal/handler/handler_test.go
-func TestCancelBooking(t *testing.T) {
-    // Arrange
-    handler := NewHandler(mockRepo)
-    req := httptest.NewRequest("DELETE", "/bookings/123", nil)
-    
-    // Act
-    resp := handler.CancelBooking(req)
-    
-    // Assert
-    assert.Equal(t, http.StatusOK, resp.StatusCode)
-}
+```ts
+// apps/web/__tests__/api/bookings/cancel.test.ts
+it('cancels a booking', async () => {
+  mockSend.mockResolvedValueOnce({ Item: { id: 'b-1', status: 'pending' } }); // get
+  mockSend.mockResolvedValueOnce({});                                          // update
+
+  const { req, res } = createMocks({ method: 'DELETE', query: { id: 'b-1' } });
+  await handler(req, res);
+
+  expect(res._getStatusCode()).toBe(200);
+});
 ```
 
-Run test: `go test ./internal/handler` → **Should FAIL** ❌
+`npm test` → **should FAIL** ❌
 
-### 3. Implement Minimum Code
+### 3. Implement the minimum to pass
 
-```go
-// services/bookings/internal/handler/handler.go
-func (h *Handler) CancelBooking(r *http.Request) *Response {
-    // Minimal implementation to pass test
-    return &Response{StatusCode: http.StatusOK}
-}
-```
+Add the handler logic in the relevant `pages/api/...` file.
 
-Run test: `go test ./internal/handler` → **Should PASS** ✅
+`npm test` → **should PASS** ✅
 
 ### 4. Refactor
 
-Improve code quality while keeping tests green:
-- Extract functions
-- Improve naming
-- Add error handling
-- Optimize performance
+Improve naming, extract helpers, tighten validation, keeping tests green.
 
-Run tests after each change to ensure nothing breaks.
-
-### 5. Commit and Push
+### 5. Commit and open a PR
 
 ```bash
 git add .
@@ -212,192 +121,58 @@ git commit -m "feat(bookings): add booking cancellation"
 git push origin feature/booking-cancellation
 ```
 
-### 6. Create Pull Request
+Open a PR to `develop`.
 
-- PR title: `feat(bookings): add booking cancellation`
-- Description: What and why
-- Link to issue/ticket
-- Tests pass locally ✅
+## CI
 
-## CI/CD Pipeline
-
-### Pull Request (Any Branch → develop or main)
+`.github/workflows/ci.yaml` runs on every PR and push:
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ 1. Lint & Format Check                              │
-│    - Go: gofmt, golangci-lint                       │
-│    - TypeScript: eslint, prettier                   │
-│    - Terraform: terraform fmt                       │
-└─────────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────────┐
-│ 2. Unit Tests                                       │
-│    - Go: go test ./...                              │
-│    - Web: npm test                                  │
-│    - Mobile: flutter test                           │
-└─────────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────────┐
-│ 3. Integration Tests                                │
-│    - Services with test DynamoDB                    │
-│    - API integration tests                          │
-└─────────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────────┐
-│ 4. Terraform Plan                                   │
-│    - Plan for all environments                      │
-│    - Post plan output to PR                         │
-└─────────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────────┐
-│ 5. Build & Security Scan                            │
-│    - Docker image build                             │
-│    - Trivy security scan                            │
-└─────────────────────────────────────────────────────┘
+web job:
+  npm ci → lint → test → type-check → build
+
+terraform-plan job (PRs):
+  tofu init → validate → plan (dev, plan-only)
 ```
 
-**All checks must pass before merge** ✅
+All checks must pass before merge. CI does not deploy — **Vercel** deploys the
+web app automatically via its GitHub integration.
 
-### Merge to develop → Deploy to Dev
-
-```
-PR Merged to develop
-        ↓
-┌─────────────────────────────────────────────────────┐
-│ 1. Run All Tests Again                              │
-└─────────────────────────────────────────────────────┘
-        ↓
-┌─────────────────────────────────────────────────────┐
-│ 2. Terraform Apply (Management + Dev)               │
-│    - Auto-approve (no manual step)                  │
-└─────────────────────────────────────────────────────┘
-        ↓
-┌─────────────────────────────────────────────────────┐
-│ 3. Build & Push Docker Images                       │
-│    - Tag: dev-{git-sha}                             │
-└─────────────────────────────────────────────────────┘
-        ↓
-┌─────────────────────────────────────────────────────┐
-│ 4. Flux Auto-Deploy to Dev EKS                      │
-│    - Watches develop branch                         │
-│    - Applies k8s/overlays/dev                       │
-│    - No manual approval needed                      │
-└─────────────────────────────────────────────────────┘
-        ↓
-┌─────────────────────────────────────────────────────┐
-│ 5. E2E Tests on Dev Environment                     │
-│    - Smoke tests                                    │
-│    - Critical user flows                            │
-└─────────────────────────────────────────────────────┘
-```
-
-### Merge to main → Deploy to Prod
+## Branching
 
 ```
-PR Merged to main (from develop)
-        ↓
-┌─────────────────────────────────────────────────────┐
-│ 1. Run All Tests Again                              │
-└─────────────────────────────────────────────────────┘
-        ↓
-┌─────────────────────────────────────────────────────┐
-│ 2. Terraform Apply (Management + Prod)              │
-│    - Auto-approve (no manual step)                  │
-└─────────────────────────────────────────────────────┘
-        ↓
-┌─────────────────────────────────────────────────────┐
-│ 3. Build & Push Docker Images                       │
-│    - Tag: prod-{git-sha}                            │
-└─────────────────────────────────────────────────────┘
-        ↓
-┌─────────────────────────────────────────────────────┐
-│ 4. Flux Auto-Deploy to Prod EKS                     │
-│    - Watches main branch                            │
-│    - Applies k8s/overlays/prod                      │
-│    - No manual approval needed                      │
-└─────────────────────────────────────────────────────┘
-        ↓
-┌─────────────────────────────────────────────────────┐
-│ 5. E2E Tests on Prod Environment                    │
-│    - Smoke tests only                               │
-│    - Alert on failure                               │
-└─────────────────────────────────────────────────────┘
+feature/*  ──PR──▶  develop  ──PR──▶  main
 ```
 
-## Branching Strategy
+- Feature branches from `develop`
+- PRs require passing CI (self-review OK for solo dev)
+- Vercel deploys on merge
 
-```
-feature/booking-cancellation
-        ↓ (PR + Review)
-    develop ──────────────→ Dev Environment (crowdunlockedbeta.com)
-        ↓ (PR + Review)
-     main ────────────────→ Prod Environment (crowdunlocked.com)
-```
-
-**Rules:**
-- Feature branches created from `develop`
-- PRs require passing tests (enforced by GitHub)
-- Self-review allowed (solo developer)
-- No manual approval in deployment pipeline
-- Flux auto-deploys on branch changes
-
-## Test Coverage Goals
-
-- **Unit tests**: 80%+ coverage
-- **Integration tests**: Critical paths covered
-- **E2E tests**: Happy paths + critical errors
-
-## Best Practices
+## Best practices
 
 ### Do ✅
 - Write tests before code
-- Test behavior, not implementation
+- Test behavior, not implementation details
 - Use descriptive test names
 - Keep tests fast and isolated
-- Mock external dependencies
+- Reset mocks between tests
 - Run tests locally before pushing
-- Fix broken tests immediately
 
 ### Don't ❌
 - Skip tests for "simple" code
-- Test implementation details
-- Write slow tests
 - Share state between tests
 - Commit broken tests
 - Disable tests to make CI pass
-- Write tests after the fact
 
-## Tools & Libraries
+## Tools
 
-### Go
-- Testing: `testing` (stdlib)
-- Assertions: `github.com/stretchr/testify`
-- Mocking: `github.com/stretchr/testify/mock`
-- HTTP testing: `httptest` (stdlib)
+- **Test runner**: Jest
+- **HTTP mocking**: node-mocks-http
+- **AWS SDK**: mocked via `jest.mock` (see above)
+- **Types**: TypeScript (`tsc --noEmit`)
+- **Lint**: `next lint` (ESLint)
 
-### TypeScript/Next.js
-- Testing: Jest
-- React testing: React Testing Library
-- E2E: Playwright
-- Mocking: MSW (Mock Service Worker)
+## Reference
 
-### Flutter
-- Testing: `flutter_test`
-- Mocking: `mockito`
-- Integration: `integration_test`
-
-## Example Test Files
-
-See these examples for reference:
-- Go service: `services/bookings/internal/handler/handler_test.go` (to be created)
-- Next.js: `apps/web/app/bookings/page.test.tsx` (to be created)
-- Flutter: `apps/mobile/lib/features/bookings/booking_screen_test.dart` (to be created)
-
-## Getting Help
-
-- Check existing tests for patterns
-- Review test output carefully
-- Use `-v` flag for verbose output
-- Run single test to isolate issues
-- Ask in PR comments for review
+See the existing suites in `apps/web/__tests__/api/` for working examples of the
+mock setup and assertion patterns.
